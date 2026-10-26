@@ -1,16 +1,20 @@
-import type { Activity, Budget, Preferences } from "./types";
+import type { Activity, Budget, Cost, Preferences } from "./types";
 
-const budgetRank: Record<Budget, number> = { free: 0, low: 1, medium: 2, high: 3 };
+const allowedCosts: Record<Budget, Cost[]> = {
+  free: ["free"],
+  moderate: ["free", "moderate"],
+  any: ["free", "moderate", "expensive"],
+};
 
 /** Returns activities that fit the preferences, best matches first. */
 export function recommend(activities: Activity[], prefs: Preferences): Activity[] {
   return activities
     .filter(
       (a) =>
-        prefs.childAge >= a.minAge &&
-        budgetRank[a.budget] <= budgetRank[prefs.budget] &&
-        a.durationHours <= prefs.hours &&
-        (prefs.setting === "either" || a.setting === prefs.setting),
+        (prefs.place === "any" || a.place === prefs.place) &&
+        (prefs.coffee === "any" || a.coffee === (prefs.coffee === "yes")) &&
+        (prefs.distance === "any" || a.distance === prefs.distance) &&
+        allowedCosts[prefs.budget].includes(a.cost),
     )
     .sort((a, b) => b.durationHours - a.durationHours);
 }
