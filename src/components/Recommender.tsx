@@ -375,7 +375,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
         )}
       </section>
 
-      <section aria-label="Mapa Bosne i Hercegovine s lokacijama aktivnosti" className="mx-auto w-full max-w-4xl px-4">
+      <section aria-label="Mapa Bosne i Hercegovine s lokacijama aktivnosti" className="mx-auto w-full max-w-[62rem] px-4">
         <BosniaMap
           activities={activities}
           highlightedIds={results.map((a) => a.id)}
