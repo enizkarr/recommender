@@ -21,7 +21,7 @@ export default function Home({ searchParams }: PageProps<"/">) {
           .
         </p>
       </header>
-      <div className="mx-auto w-full max-w-[110rem]">
+      <div className="mx-auto w-full max-w-[150rem]">
         <Suspense fallback={<Recommender initialPrefs={null} />}>
           {/* A shared link like ?mjesto=priroda opens with those filters already applied. */}
           {searchParams.then((query) => (
