@@ -73,7 +73,22 @@ body::before {
   }
 }
 
+/* Map landmark icons bob gently inside their badges */
+.landmark-float {
+  animation: landmark-float 3.2s ease-in-out infinite;
+}
+
+@keyframes landmark-float {
+  50% {
+    transform: translateY(-2.5px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .landmark-float {
+    animation: none;
+  }
+
   .marquee-viewport {
     overflow-x: auto;
   }

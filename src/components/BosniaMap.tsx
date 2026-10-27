@@ -3,6 +3,7 @@
 import { useId, useRef, useState } from "react";
 import { bosniaBorder } from "@/data/bosniaBorder";
 import { bosniaRoads } from "@/data/bosniaRoads";
+import Landmark from "@/components/Landmark";
 import { cities, type City } from "@/data/cities";
 import type { Activity } from "@/lib/types";
 
@@ -62,12 +63,25 @@ function inLens(lens: Lens, [x, y]: [number, number]): boolean {
   return x >= lens.x && x <= lens.x + LENS_W && y >= lens.y && y <= lens.y + LENS_H;
 }
 
-const labelPlacement: Record<NonNullable<City["label"]>, { dx: number; dy: number; anchor: "start" | "middle" | "end" }> = {
-  right: { dx: 12, dy: 8, anchor: "start" },
-  left: { dx: -12, dy: 8, anchor: "end" },
-  above: { dx: 0, dy: -16, anchor: "middle" },
-  below: { dx: 0, dy: 50, anchor: "middle" },
-};
+// City badges are little map pins: a white circle with the landmark, whose tip touches the city.
+const BADGE_RADIUS = 17;
+const CAPITAL_BADGE_RADIUS = 20;
+const PIN_TIP = 7; // gap between the circle and the city point
+
+/** Where a city's name goes, relative to the centre of its badge (r = badge radius). */
+function labelPosition(label: City["label"], r: number): { dx: number; dy: number; anchor: "start" | "middle" | "end" } {
+  switch (label) {
+    case "left":
+      return { dx: -(r + 6), dy: 8, anchor: "end" };
+    case "above":
+      return { dx: 0, dy: -(r + 8), anchor: "middle" };
+    case "below":
+      // Below the city point itself, i.e. under the pin tip.
+      return { dx: 0, dy: r + PIN_TIP + 30, anchor: "middle" };
+    default:
+      return { dx: r + 6, dy: 8, anchor: "start" };
+  }
+}
 
 /**
  * Country, roads, border and cities. Drawn once for the full map and again for the zoomed box;
@@ -107,26 +121,46 @@ function MapLayers({ clipId, unit }: { clipId: string; unit: number }) {
         vectorEffect="non-scaling-stroke"
       />
 
-      {cities.map((c) => {
+      {cities.map((c, i) => {
         const [x, y] = project(c.coordinates[1], c.coordinates[0]);
-        const { dx, dy, anchor } = labelPlacement[c.label ?? "right"];
+        const r = (c.capital ? CAPITAL_BADGE_RADIUS : BADGE_RADIUS) * unit;
+        const cy = y - r - PIN_TIP * unit; // badge centre, above the city point
+        const iconScale = (r * 1.6) / 24;
+        const { dx, dy, anchor } = labelPosition(c.label, r / unit);
         return (
           <g key={c.name} className="fill-zinc-600">
-            <circle cx={x} cy={y} r={(c.capital ? 7 : 5) * unit} />
-            {/* The white stroke behind the text keeps names readable on top of roads. */}
-            <text
-              x={x + dx * unit}
-              y={y + dy * unit}
-              textAnchor={anchor}
-              fontSize={(c.capital ? 30 : 24) * unit}
-              fontWeight={c.capital ? 600 : 500}
-              stroke="white"
-              strokeWidth={6 * unit}
+            <title>{`${c.name} – ${c.landmark}`}</title>
+            <path
+              d={`M${x - 0.4 * r},${cy + 0.85 * r} L${x},${y} L${x + 0.4 * r},${cy + 0.85 * r} Z`}
+              className="fill-white stroke-zinc-400"
+              strokeWidth={1.5 * unit}
               strokeLinejoin="round"
-              paintOrder="stroke"
-            >
-              {c.name}
-            </text>
+            />
+            <circle cx={x} cy={cy} r={r} className="fill-white stroke-zinc-400" strokeWidth={1.5 * unit} />
+            <g transform={`translate(${x - 12 * iconScale} ${cy - 12 * iconScale}) scale(${iconScale})`}>
+              {/* Separate group: a CSS animation would replace a transform attribute on the same element. */}
+              <g className="landmark-float" style={{ animationDelay: `${-i * 0.37}s` }}>
+                <Landmark icon={c.icon} />
+              </g>
+            </g>
+            {/* Names only on the full map: the zoomed box already names the city in its heading,
+                and a label there would sit on top of the activity dots. */}
+            {unit === 1 && (
+              // The white stroke behind the text keeps names readable on top of roads.
+              <text
+                x={x + dx}
+                y={cy + dy}
+                textAnchor={anchor}
+                fontSize={c.capital ? 30 : 24}
+                fontWeight={c.capital ? 600 : 500}
+                stroke="white"
+                strokeWidth={6}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+              >
+                {c.name}
+              </text>
+            )}
           </g>
         );
       })}
