@@ -1,6 +1,10 @@
+import { Suspense } from "react";
 import Recommender from "@/components/Recommender";
+import { prefsFromQuery } from "@/lib/filtersUrl";
 
-export default function Home() {
+// Not async: the URL is only read inside the Suspense boundary below,
+// so the header and the unfiltered view stay part of the prerendered page.
+export default function Home({ searchParams }: PageProps<"/">) {
   return (
     <main className="flex-1 px-6 pt-20 pb-12">
       <header className="mx-auto mb-12 w-[60%] min-w-[16rem] text-center">
@@ -18,7 +22,12 @@ export default function Home() {
         </p>
       </header>
       <div className="mx-auto w-full max-w-[110rem]">
-        <Recommender />
+        <Suspense fallback={<Recommender initialPrefs={null} />}>
+          {/* A shared link like ?mjesto=priroda opens with those filters already applied. */}
+          {searchParams.then((query) => (
+            <Recommender initialPrefs={prefsFromQuery(query)} />
+          ))}
+        </Suspense>
       </div>
     </main>
   );

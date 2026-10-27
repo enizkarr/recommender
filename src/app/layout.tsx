@@ -20,13 +20,13 @@ const greatVibes = Great_Vibes({
 
 export const metadata: Metadata = {
   title: "Family Time",
-  description: "Ideas for how and where families can spend time together.",
+  description: "Ideje kako i gdje porodice mogu zajedno provesti vrijeme u Bosni i Hercegovini.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="bs"
       className={`${geistSans.variable} ${geistMono.variable} ${greatVibes.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>

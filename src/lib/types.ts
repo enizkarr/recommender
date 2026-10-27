@@ -1,4 +1,5 @@
 export type Place = "nature" | "city";
+export type Setting = "indoor" | "outdoor";
 export type Distance = "near" | "far";
 export type Cost = "free" | "moderate" | "expensive";
 export type Budget = "free" | "moderate" | "any";
@@ -12,6 +13,8 @@ export interface Activity {
   description: string;
   place: Place;
   coffee: boolean;
+  /** Mostly under a roof, so it works on a rainy day. */
+  indoor: boolean;
   distance: Distance;
   cost: Cost;
   minAge: number;
@@ -32,6 +35,7 @@ export interface Activity {
 export interface Preferences {
   place: Choice<Place>;
   coffee: Choice<"yes" | "no">;
+  setting: Choice<Setting>;
   distance: Choice<Distance>;
   budget: Budget;
 }
