@@ -57,6 +57,15 @@ body::before {
   animation-play-state: paused;
 }
 
+/* Fast spin after pressing the button: blurred, and never paused by hover */
+.marquee-spinning {
+  filter: blur(3px);
+}
+
+.marquee-spinning:hover {
+  animation-play-state: running;
+}
+
 /* Shifts by one copy of the list (half the track) plus half the gap between the copies */
 @keyframes marquee {
   to {
