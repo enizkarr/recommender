@@ -132,7 +132,7 @@ export default function Recommender() {
                   inert={copy === 1}
                   className="flex w-[min(30rem,85vw)] shrink-0 flex-col overflow-hidden rounded-2xl border border-white/60 bg-white/75 shadow-xl backdrop-blur-md dark:border-zinc-700/60 dark:bg-zinc-900/75"
                 >
-                  <div className="relative h-44 bg-gradient-to-br from-amber-400 via-rose-400 to-indigo-500">
+                  <div className="relative h-56 bg-gradient-to-br from-amber-400 via-rose-400 to-indigo-500">
                     {a.image ? (
                       <Image src={a.image} alt={a.title} fill sizes="30rem" className="object-cover" />
                     ) : (
@@ -141,12 +141,12 @@ export default function Recommender() {
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-1 flex-col p-6">
-                    <h3 className="text-3xl font-semibold">{a.title}</h3>
+                  <div className="flex flex-1 flex-col p-5">
+                    <h3 className="text-2xl font-semibold">{a.title}</h3>
                     <p className="mt-1 text-sm text-zinc-500">📍 {a.location}</p>
-                    <p className="mt-4 text-lg text-zinc-700 dark:text-zinc-300">{a.description}</p>
-                    <p className="mt-4 text-sm text-zinc-600 dark:text-zinc-400">{a.info}</p>
-                    <div className="mt-auto flex items-end justify-between gap-4 pt-6">
+                    <p className="mt-2 text-base text-zinc-700 dark:text-zinc-300">{a.description}</p>
+                    <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{a.info}</p>
+                    <div className="mt-auto flex items-end justify-between gap-4 pt-3">
                       <p className="text-base text-zinc-500">
                         {placeLabel[a.place]} · {distanceLabel[a.distance]} · {costLabel[a.cost]}
                         {a.coffee && " · ☕ Kafa"}
@@ -163,7 +163,7 @@ export default function Recommender() {
                       )}
                     </div>
                     {a.imageCredit && (
-                      <p className="mt-3 text-xs text-zinc-400">
+                      <p className="mt-2 text-xs text-zinc-400">
                         Foto:{" "}
                         <a href={a.imageCredit.source} target="_blank" rel="noopener noreferrer" className="hover:underline">
                           {a.imageCredit.author}

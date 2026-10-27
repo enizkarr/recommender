@@ -12,7 +12,7 @@ export default function Home() {
           Tell us about your family and we&apos;ll suggest how and where to spend time together.
         </p>
       </header>
-      <div className="mx-auto w-full max-w-[96rem]">
+      <div className="mx-auto w-full max-w-[110rem]">
         <Recommender />
       </div>
     </main>
