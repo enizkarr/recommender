@@ -64,9 +64,16 @@ function inLens(lens: Lens, [x, y]: [number, number]): boolean {
 }
 
 // City badges are little map pins: a white circle with the landmark, whose tip touches the city.
-const BADGE_RADIUS = 17;
-const CAPITAL_BADGE_RADIUS = 20;
+const BADGE_RADIUS = 24;
+const CAPITAL_BADGE_RADIUS = 28;
 const PIN_TIP = 7; // gap between the circle and the city point
+
+/** Badge centre for a city, above the city point, and the badge radius, in map units. */
+function badge(c: City, unit: number): { x: number; cy: number; r: number } {
+  const [x, y] = project(c.coordinates[1], c.coordinates[0]);
+  const r = (c.capital ? CAPITAL_BADGE_RADIUS : BADGE_RADIUS) * unit;
+  return { x, cy: y - r - PIN_TIP * unit, r };
+}
 
 /** Where a city's name goes, relative to the centre of its badge (r = badge radius). */
 function labelPosition(label: City["label"], r: number): { dx: number; dy: number; anchor: "start" | "middle" | "end" } {
@@ -87,7 +94,7 @@ function labelPosition(label: City["label"], r: number): { dx: number; dy: numbe
  * Country, roads, border and cities. Drawn once for the full map and again for the zoomed box;
  * `unit` shrinks text and dots in the zoomed box, and strokes keep their width on screen.
  */
-function MapLayers({ clipId, unit }: { clipId: string; unit: number }) {
+function MapLayers({ clipId, unit, onHoverCity }: { clipId: string; unit: number; onHoverCity: (name: string | null) => void }) {
   return (
     <>
       <defs>
@@ -122,14 +129,17 @@ function MapLayers({ clipId, unit }: { clipId: string; unit: number }) {
       />
 
       {cities.map((c, i) => {
-        const [x, y] = project(c.coordinates[1], c.coordinates[0]);
-        const r = (c.capital ? CAPITAL_BADGE_RADIUS : BADGE_RADIUS) * unit;
-        const cy = y - r - PIN_TIP * unit; // badge centre, above the city point
+        const { x, cy, r } = badge(c, unit);
+        const y = cy + r + PIN_TIP * unit; // the city point, where the pin's tip touches
         const iconScale = (r * 1.6) / 24;
         const { dx, dy, anchor } = labelPosition(c.label, r / unit);
         return (
-          <g key={c.name} className="fill-zinc-600">
-            <title>{`${c.name} – ${c.landmark}`}</title>
+          <g
+            key={c.name}
+            className="fill-zinc-600"
+            onPointerEnter={() => onHoverCity(c.name)}
+            onPointerLeave={() => onHoverCity(null)}
+          >
             <path
               d={`M${x - 0.4 * r},${cy + 0.85 * r} L${x},${y} L${x + 0.4 * r},${cy + 0.85 * r} Z`}
               className="fill-white stroke-zinc-400"
@@ -203,7 +213,7 @@ function Dot({ activity: a, highlighted, active, x, y, onSelect, onHover }: DotP
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
       <span
-        className={`block size-3.5 rounded-full ring-2 transition group-hover:scale-125 group-focus-visible:scale-125 ${active ? "scale-150 ring-rose-300" : "ring-white"} ${highlighted ? "bg-rose-600" : "bg-zinc-400"}`}
+        className={`block size-4 rounded-full ring-2 transition group-hover:scale-125 group-focus-visible:scale-125 ${active ? "scale-150 ring-rose-300" : "ring-white"} ${highlighted ? "bg-rose-600" : "bg-zinc-400"}`}
       />
       <span
         className={`pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-xs text-white shadow group-hover:block group-focus-visible:block ${active ? "block" : "hidden"}`}
@@ -214,12 +224,27 @@ function Dot({ activity: a, highlighted, active, x, y, onSelect, onHover }: DotP
   );
 }
 
+/** The city and its landmark, shown above a hovered badge. Position as fractions (0–1) of the containing box. */
+function CityTooltip({ city, x, y }: { city: City; x: number; y: number }) {
+  return (
+    <span
+      className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-xs text-white shadow"
+      style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
+    >
+      <span className="font-semibold">{city.name}</span> · {city.landmark}
+    </span>
+  );
+}
+
 /** A white map of Bosnia and Herzegovina with main roads, big cities, a dot for every activity and a movable magnifier. */
 export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover }: Props) {
   const clipId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
   const [lens, setLens] = useState<Lens>({ x: lensStartX, y: lensStartY });
   const drag = useRef<{ pointerX: number; pointerY: number; lens: Lens } | null>(null);
+  // City whose badge the pointer is over, and whether that is in the zoomed box.
+  const [hoveredCity, setHoveredCity] = useState<{ name: string; inset: boolean } | null>(null);
+  const hovered = hoveredCity && cities.find((c) => c.name === hoveredCity.name);
 
   const dotProps = (a: Activity) => ({
     activity: a,
@@ -265,8 +290,19 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
   return (
     <div ref={mapRef} className="relative">
       <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="block h-auto w-full drop-shadow-2xl" aria-hidden>
-        <MapLayers clipId={`${clipId}-map`} unit={1} />
+        <MapLayers
+          clipId={`${clipId}-map`}
+          unit={1}
+          onHoverCity={(name) => setHoveredCity(name ? { name, inset: false } : null)}
+        />
       </svg>
+
+      {hovered &&
+        !hoveredCity.inset &&
+        (() => {
+          const { x, cy, r } = badge(hovered, 1);
+          return <CityTooltip city={hovered} x={x / VIEW_WIDTH} y={(cy - r - 4) / VIEW_HEIGHT} />;
+        })()}
 
       {positioned
         .filter(({ at }) => !inLens(lens, at))
@@ -306,8 +342,18 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
             className="absolute inset-0 block h-full w-full"
             aria-hidden
           >
-            <MapLayers clipId={`${clipId}-inset`} unit={INSET_UNIT} />
+            <MapLayers
+              clipId={`${clipId}-inset`}
+              unit={INSET_UNIT}
+              onHoverCity={(name) => setHoveredCity(name ? { name, inset: true } : null)}
+            />
           </svg>
+          {hovered &&
+            hoveredCity.inset &&
+            (() => {
+              const { x, cy, r } = badge(hovered, INSET_UNIT);
+              return <CityTooltip city={hovered} x={(x - lens.x) / LENS_W} y={(cy - r - 4 * INSET_UNIT - lens.y) / LENS_H} />;
+            })()}
           {positioned
             .filter(({ at }) => inLens(lens, at))
             .map(({ a, at: [x, y] }) => (
