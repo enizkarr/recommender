@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import BosniaMap from "@/components/BosniaMap";
 import { activities } from "@/data/activities";
+import { cities } from "@/data/cities";
 import { noFilters, prefsToQuery } from "@/lib/filtersUrl";
-import { recommend } from "@/lib/recommend";
+import { isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
 import type { Activity, Cost, Distance, Place, Preferences } from "@/lib/types";
 
 interface FilterOption<T extends string> {
@@ -90,8 +91,8 @@ const distanceLabel: Record<Distance, string> = { near: "Blizu", far: "Daleko" }
 const costLabel: Record<Cost, string> = { free: "Džabe", moderate: "Umjereno", expensive: "Skuplje" };
 
 /** "Pronađena 1 aktivnost", "Pronađene 3 aktivnosti", "Pronađeno 5 aktivnosti" (Bosnian plural forms). */
-function resultsText(count: number): string {
-  if (count === 0) return "Nijedna aktivnost ne odgovara filterima.";
+function resultsText(count: number, nearCity: boolean): string {
+  if (count === 0) return nearCity ? `Nijedna aktivnost u krugu od ${NEAR_CITY_KM} km.` : "Nijedna aktivnost ne odgovara filterima.";
   const lastDigit = count % 10;
   const lastTwo = count % 100;
   if (lastDigit === 1 && lastTwo !== 11) return `Pronađena ${count} aktivnost`;
@@ -169,7 +170,10 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
   // The filters that were active when "Predloži" was last pressed; null until the first press,
   // so every activity flows by until then. A shared link starts with its filters applied.
   const [applied, setApplied] = useState<Preferences | null>(initialPrefs);
-  const results = recommend(activities, applied ?? noFilters);
+  // City picked on the map: only activities around it are shown, on top of the other filters.
+  const [cityName, setCityName] = useState<string | null>(null);
+  const city = cities.find((c) => c.name === cityName);
+  const results = recommend(activities, applied ?? noFilters).filter((a) => !city || isNear(a, city.coordinates));
   // While true the cards spin very fast; the filters are applied when the spin ends.
   const [spinning, setSpinning] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -242,7 +246,16 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
     setApplied(null);
     setSpinning(false);
     setBrowsing(false);
+    setCityName(null);
     writeFiltersToUrl(null);
+  }
+
+  /** A city badge was clicked: show only activities around it, or everything again on a second click. */
+  function selectCity(name: string) {
+    if (spinning) return;
+    setCityName(name === cityName ? null : name);
+    setActiveId(null);
+    setBrowsing(true);
   }
 
   /** A map dot was clicked: highlight its card and bring it into view. */
@@ -310,11 +323,21 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
         </button>
       </form>
 
-      {applied && !spinning && (
+      {(applied || city) && !spinning && (
         <div className="flex flex-wrap items-center justify-center gap-3" aria-live="polite">
           <p className="rounded-full bg-white/80 px-4 py-1.5 font-medium text-zinc-800 shadow backdrop-blur dark:bg-zinc-900/80 dark:text-zinc-100">
-            {resultsText(results.length)}
+            {resultsText(results.length, !!city)}
           </p>
+          {city && (
+            <button
+              type="button"
+              onClick={() => setCityName(null)}
+              aria-label={`Prikaži aktivnosti i izvan okoline grada ${city.name}`}
+              className="rounded-full bg-rose-600 px-4 py-1.5 text-sm font-medium text-white shadow transition hover:bg-rose-700"
+            >
+              📍 {city.name} ✕
+            </button>
+          )}
           <button
             type="button"
             onClick={reset}
@@ -382,6 +405,8 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
           activeId={activeId}
           onSelect={selectActivity}
           onHover={setActiveId}
+          selectedCity={cityName}
+          onSelectCity={selectCity}
         />
       </section>
     </div>

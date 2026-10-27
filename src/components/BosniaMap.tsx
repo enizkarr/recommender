@@ -94,7 +94,19 @@ function labelPosition(label: City["label"], r: number): { dx: number; dy: numbe
  * Country, roads, border and cities. Drawn once for the full map and again for the zoomed box;
  * `unit` shrinks text and dots in the zoomed box, and strokes keep their width on screen.
  */
-function MapLayers({ clipId, unit, onHoverCity }: { clipId: string; unit: number; onHoverCity: (name: string | null) => void }) {
+function MapLayers({
+  clipId,
+  unit,
+  selectedCity,
+  onHoverCity,
+  onSelectCity,
+}: {
+  clipId: string;
+  unit: number;
+  selectedCity: string | null;
+  onHoverCity: (name: string | null) => void;
+  onSelectCity: (name: string) => void;
+}) {
   return (
     <>
       <defs>
@@ -133,20 +145,24 @@ function MapLayers({ clipId, unit, onHoverCity }: { clipId: string; unit: number
         const y = cy + r + PIN_TIP * unit; // the city point, where the pin's tip touches
         const iconScale = (r * 1.6) / 24;
         const { dx, dy, anchor } = labelPosition(c.label, r / unit);
+        const selected = c.name === selectedCity;
+        const outlineClass = selected ? "fill-white stroke-rose-500" : "fill-white stroke-zinc-400";
+        const outlineWidth = (selected ? 3.5 : 1.5) * unit;
         return (
           <g
             key={c.name}
-            className="fill-zinc-600"
+            className="cursor-pointer fill-zinc-600"
             onPointerEnter={() => onHoverCity(c.name)}
             onPointerLeave={() => onHoverCity(null)}
+            onClick={() => onSelectCity(c.name)}
           >
             <path
               d={`M${x - 0.4 * r},${cy + 0.85 * r} L${x},${y} L${x + 0.4 * r},${cy + 0.85 * r} Z`}
-              className="fill-white stroke-zinc-400"
-              strokeWidth={1.5 * unit}
+              className={outlineClass}
+              strokeWidth={outlineWidth}
               strokeLinejoin="round"
             />
-            <circle cx={x} cy={cy} r={r} className="fill-white stroke-zinc-400" strokeWidth={1.5 * unit} />
+            <circle cx={x} cy={cy} r={r} className={outlineClass} strokeWidth={outlineWidth} />
             <g transform={`translate(${x - 12 * iconScale} ${cy - 12 * iconScale}) scale(${iconScale})`}>
               {/* Separate group: a CSS animation would replace a transform attribute on the same element. */}
               <g className="landmark-float" style={{ animationDelay: `${-i * 0.37}s` }}>
@@ -186,6 +202,10 @@ interface Props {
   activeId: string | null;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
+  /** City whose surroundings the cards are limited to, drawn with a rose outline. */
+  selectedCity: string | null;
+  /** A city badge was clicked. */
+  onSelectCity: (name: string) => void;
 }
 
 interface DotProps {
@@ -225,19 +245,20 @@ function Dot({ activity: a, highlighted, active, x, y, onSelect, onHover }: DotP
 }
 
 /** The city and its landmark, shown above a hovered badge. Position as fractions (0–1) of the containing box. */
-function CityTooltip({ city, x, y }: { city: City; x: number; y: number }) {
+function CityTooltip({ city, selected, x, y }: { city: City; selected: boolean; x: number; y: number }) {
   return (
     <span
       className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-xs text-white shadow"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
       <span className="font-semibold">{city.name}</span> · {city.landmark}
+      <span className="block text-zinc-400">{selected ? "Klikni za sve aktivnosti" : "Klikni za aktivnosti u blizini"}</span>
     </span>
   );
 }
 
 /** A white map of Bosnia and Herzegovina with main roads, big cities, a dot for every activity and a movable magnifier. */
-export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover }: Props) {
+export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover, selectedCity, onSelectCity }: Props) {
   const clipId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
   const [lens, setLens] = useState<Lens>({ x: lensStartX, y: lensStartY });
@@ -293,6 +314,8 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
         <MapLayers
           clipId={`${clipId}-map`}
           unit={1}
+          selectedCity={selectedCity}
+          onSelectCity={onSelectCity}
           onHoverCity={(name) => setHoveredCity(name ? { name, inset: false } : null)}
         />
       </svg>
@@ -301,7 +324,7 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
         !hoveredCity.inset &&
         (() => {
           const { x, cy, r } = badge(hovered, 1);
-          return <CityTooltip city={hovered} x={x / VIEW_WIDTH} y={(cy - r - 4) / VIEW_HEIGHT} />;
+          return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={x / VIEW_WIDTH} y={(cy - r - 4) / VIEW_HEIGHT} />;
         })()}
 
       {positioned
@@ -345,6 +368,8 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
             <MapLayers
               clipId={`${clipId}-inset`}
               unit={INSET_UNIT}
+              selectedCity={selectedCity}
+              onSelectCity={onSelectCity}
               onHoverCity={(name) => setHoveredCity(name ? { name, inset: true } : null)}
             />
           </svg>
@@ -352,7 +377,7 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
             hoveredCity.inset &&
             (() => {
               const { x, cy, r } = badge(hovered, INSET_UNIT);
-              return <CityTooltip city={hovered} x={(x - lens.x) / LENS_W} y={(cy - r - 4 * INSET_UNIT - lens.y) / LENS_H} />;
+              return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={(x - lens.x) / LENS_W} y={(cy - r - 4 * INSET_UNIT - lens.y) / LENS_H} />;
             })()}
           {positioned
             .filter(({ at }) => inLens(lens, at))
