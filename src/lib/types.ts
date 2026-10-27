@@ -18,6 +18,8 @@ export interface Activity {
   durationHours: number;
   tags: string[];
   location: string;
+  /** [latitude, longitude], used for the map marker. */
+  coordinates: [number, number];
   /** Short practical note shown on the card: prices, hours, tips. */
   info: string;
   website?: string;

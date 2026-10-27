@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import BosniaMap from "@/components/BosniaMap";
 import { activities } from "@/data/activities";
 import { recommend } from "@/lib/recommend";
 import type { Cost, Distance, Place, Preferences } from "@/lib/types";
@@ -176,6 +177,10 @@ export default function Recommender() {
             )}
           </div>
         )}
+      </section>
+
+      <section aria-label="Mapa Bosne i Hercegovine s lokacijama aktivnosti" className="mx-auto w-full max-w-4xl px-4">
+        <BosniaMap activities={activities} highlightedIds={results.map((a) => a.id)} />
       </section>
     </div>
   );
