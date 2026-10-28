@@ -610,6 +610,7 @@ export const activities: Activity[] = [
     location: "Babanovac, Vlašić",
     coordinates: [44.2898, 17.609],
     info: "Šetnja i sankanje su besplatni; ski karte i najam opreme se plaćaju. Zimi ponijeti lance za snijeg.",
+    image: "/activities/vlasic.jpg",
   },
   {
     id: "jablanica-muzej",
@@ -677,6 +678,7 @@ export const activities: Activity[] = [
     location: "Boračko jezero, kod Konjica",
     coordinates: [43.56, 18.027],
     info: "Besplatno. Kupanje je ljeti; uz jezero ima restorana i kampova. Oko 20 km od Konjica.",
+    image: "/activities/boracko-jezero.jpg",
   },
   {
     id: "visegrad",
