@@ -4,10 +4,12 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import BosniaMap from "@/components/BosniaMap";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
+import StartLocationPicker from "@/components/StartLocationPicker";
 import { activities } from "@/data/activities";
 import { cities } from "@/data/cities";
 import { noFilters, prefsToQuery } from "@/lib/filtersUrl";
-import { isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
+import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
+import { formatKm, useStartLocation } from "@/lib/startLocation";
 import type { Activity, Cost, Distance, Place, Preferences } from "@/lib/types";
 
 const placeLabel: Record<Place, string> = { nature: "Priroda", city: "Grad" };
@@ -43,9 +45,11 @@ interface CardProps {
   hidden?: boolean;
   active?: boolean;
   onHover?: (id: string | null) => void;
+  /** Straight-line distance from the starting point, when one is set. */
+  fromKm?: number;
 }
 
-function ActivityCard({ a, hidden = false, active = false, onHover }: CardProps) {
+function ActivityCard({ a, hidden = false, active = false, onHover, fromKm }: CardProps) {
   return (
     <article
       id={hidden ? undefined : `card-${a.id}`}
@@ -67,7 +71,10 @@ function ActivityCard({ a, hidden = false, active = false, onHover }: CardProps)
       </div>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="text-2xl font-semibold">{a.title}</h3>
-        <p className="mt-1 text-sm text-zinc-500">📍 {a.location}</p>
+        <p className="mt-1 text-sm text-zinc-500">
+          📍 {a.location}
+          {fromKm !== undefined && <span className="font-medium text-rose-600 dark:text-rose-400"> · {formatKm(fromKm)} od vas</span>}
+        </p>
         <p className="mt-2 text-base text-zinc-700 dark:text-zinc-300">{a.description}</p>
         <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">{a.info}</p>
         <div className="mt-auto flex items-end justify-between gap-4 pt-3">
@@ -110,6 +117,8 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
   const [applied, setApplied] = useState<Preferences | null>(initialPrefs);
   // City picked on the map: only activities around it are shown, on top of the other filters.
   const [cityName, setCityName] = useState<string | null>(null);
+  const start = useStartLocation();
+  const kmFromStart = (a: Activity) => (start ? distanceKm(start.coordinates, a.coordinates) : undefined);
   const city = cities.find((c) => c.name === cityName);
   const results = recommend(activities, applied ?? noFilters).filter((a) => !city || isNear(a, city.coordinates));
   // While true the cards spin very fast; the filters are applied when the spin ends.
@@ -210,6 +219,8 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
   return (
     <div className="space-y-8">
+      <StartLocationPicker location={start} />
+
       <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-3 rounded-full border border-white/60 bg-white/85 p-2 shadow-xl backdrop-blur-md sm:flex-nowrap dark:border-zinc-700/60 dark:bg-zinc-900/85">
         <button
           type="button"
@@ -292,6 +303,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
                   hidden={copy === 1}
                   active={a.id === activeId}
                   onHover={setActiveId}
+                  fromKm={kmFromStart(a)}
                 />
               )),
             )}
@@ -308,7 +320,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
               {/* w-max + mx-auto centres a short row and lets a long one scroll */}
               <div className="mx-auto flex w-max gap-8">
                 {results.map((a) => (
-                  <ActivityCard key={a.id} a={a} active={a.id === activeId} onHover={setActiveId} />
+                  <ActivityCard key={a.id} a={a} active={a.id === activeId} onHover={setActiveId} fromKm={kmFromStart(a)} />
                 ))}
               </div>
             </div>

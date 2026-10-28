@@ -24,7 +24,7 @@ export function recommend(activities: Activity[], prefs: Preferences): Activity[
 export const NEAR_CITY_KM = 40;
 
 /** Straight-line distance in kilometres between two [latitude, longitude] points. */
-function distanceKm([lat1, lon1]: [number, number], [lat2, lon2]: [number, number]): number {
+export function distanceKm([lat1, lon1]: [number, number], [lat2, lon2]: [number, number]): number {
   const rad = Math.PI / 180;
   const dLat = (lat2 - lat1) * rad;
   const dLon = (lon2 - lon1) * rad;
