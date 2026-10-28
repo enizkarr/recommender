@@ -39,8 +39,38 @@ const extraTowns: { name: string; coordinates: [number, number] }[] = [
   { name: "Zvornik", coordinates: [44.3858, 19.1028] },
 ];
 
+// The Bosnian alphabet, with dž, lj and nj as single letters. Sorting by hand rather than with
+// localeCompare("bs"): the server and the browser ship different collation data, and a different
+// order on each side breaks hydration of the town list.
+const ALPHABET = ["a", "b", "c", "č", "ć", "d", "dž", "đ", "e", "f", "g", "h", "i", "j", "k", "l", "lj", "m", "n", "nj", "o", "p", "r", "s", "š", "t", "u", "v", "z", "ž"];
+
+/** A town name as positions in the alphabet; spaces and hyphens sort before every letter. */
+function sortKey(name: string): number[] {
+  const text = name.toLowerCase();
+  const key: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const pair = text.slice(i, i + 2);
+    if (ALPHABET.includes(pair) && pair.length === 2) {
+      key.push(ALPHABET.indexOf(pair));
+      i++;
+    } else {
+      key.push(ALPHABET.indexOf(text[i]));
+    }
+  }
+  return key;
+}
+
+function compareNames(a: string, b: string): number {
+  const ka = sortKey(a);
+  const kb = sortKey(b);
+  for (let i = 0; i < Math.min(ka.length, kb.length); i++) {
+    if (ka[i] !== kb[i]) return ka[i] - kb[i];
+  }
+  return ka.length - kb.length;
+}
+
 export const towns = [...cities.map(({ name, coordinates }) => ({ name, coordinates })), ...extraTowns].sort((a, b) =>
-  a.name.localeCompare(b.name, "bs"),
+  compareNames(a.name, b.name),
 );
 
 /** A browser location further than this from every town is taken to be outside the country. */
