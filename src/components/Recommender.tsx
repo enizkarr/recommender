@@ -152,20 +152,19 @@ function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () =>
   );
 }
 
-/** Big category tile with a coloured pictogram, toggling one quick filter. */
-function CategoryTile({ pressed, onClick, label, children }: { pressed: boolean; onClick: () => void; label: string; children: ReactNode }) {
+/**
+ * Tile with a coloured pictogram for a feature that is not built yet. It is deliberately not a
+ * button and carries an "Uskoro" badge, so nobody clicks it expecting something to happen.
+ */
+function ComingSoonTile({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={`grid justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[18px] pb-3.5 text-[13px] shadow-card transition hover:-translate-y-0.5 ${pressed ? "outline-2 outline-accent" : ""}`}
-    >
+    <li className="relative grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card">
+      <span className="absolute top-2 right-2 rounded-full bg-sun/90 px-2 py-0.5 text-[10px] font-semibold text-[#14305a]">Uskoro</span>
       <svg viewBox="0 0 40 40" className="size-9" aria-hidden>
         {children}
       </svg>
       {label}
-    </button>
+    </li>
   );
 }
 
@@ -544,27 +543,31 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
         </div>
 
         <div className="grid content-start gap-[18px]">
-          <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4" role="group" aria-label="Kategorije">
-            <CategoryTile pressed={prefs.place === "nature"} onClick={() => toggle("place", "nature")} label="Priroda">
-              <path d="M20 4 8 22h7L9 32h22l-6-10h7z" fill="#4f9a62" />
-              <rect x={18} y={31} width={4} height={6} rx={1} fill="#8a5a3b" />
-            </CategoryTile>
-            <CategoryTile pressed={prefs.place === "city"} onClick={() => toggle("place", "city")} label="Grad">
-              <path d="M4 30c4-10 9-15 16-15s12 5 16 15" fill="none" stroke="#c99a5b" strokeWidth={5} strokeLinecap="round" />
-              <path d="M2 32h36" className="stroke-accent" strokeWidth={4} strokeLinecap="round" />
-            </CategoryTile>
-            <CategoryTile pressed={prefs.budget === "free"} onClick={() => toggle("budget", "free")} label="Besplatno">
-              <circle cx={20} cy={20} r={15} className="fill-sun" />
-              <text x={20} y={25} textAnchor="middle" fontSize={13} fontWeight={700} fill="#14305a">
-                0 KM
-              </text>
-            </CategoryTile>
-            <CategoryTile pressed={prefs.coffee === "yes"} onClick={() => toggle("coffee", "yes")} label="Uz kafu">
-              <path d="M8 14h20v10a8 8 0 0 1-8 8h-4a8 8 0 0 1-8-8z" className="fill-accent" />
-              <path d="M28 17h3a4 4 0 0 1 0 8h-3" fill="none" className="stroke-accent" strokeWidth={3} />
-              <path d="M14 4c-2 3 2 4 0 7M20 4c-2 3 2 4 0 7" fill="none" stroke="#c99a5b" strokeWidth={2} strokeLinecap="round" />
-            </CategoryTile>
-          </div>
+          <ul className="m-0 grid list-none grid-cols-2 gap-3.5 p-0 sm:grid-cols-4" aria-label="Uskoro na Family Time">
+            <ComingSoonTile label="Top destinacije">
+              {/* A star above a winners' podium */}
+              <rect x={6} y={26} width={9} height={10} rx={1.5} fill="#c99a5b" />
+              <rect x={15.5} y={20} width={9} height={16} rx={1.5} className="fill-accent" />
+              <rect x={25} y={29} width={9} height={7} rx={1.5} fill="#c99a5b" />
+              <path d="M20 4 21.76 8.57 26.66 8.84 22.85 11.93 24.11 16.66 20 14 15.89 16.66 17.15 11.93 13.34 8.84 18.24 8.57Z" className="fill-sun" stroke="#14305a" strokeWidth={1} strokeLinejoin="round" />
+            </ComingSoonTile>
+            <ComingSoonTile label="Predloži destinaciju">
+              {/* A map pin with a plus: add a new place */}
+              <path d="M20 3a11 11 0 0 0-11 11c0 8 11 22 11 22s11-14 11-22A11 11 0 0 0 20 3z" className="fill-accent" />
+              <path d="M20 9v10M15 14h10" stroke="white" strokeWidth={3} strokeLinecap="round" />
+            </ComingSoonTile>
+            <ComingSoonTile label="Poredi destinacije">
+              {/* Two places side by side, with arrows going both ways */}
+              <rect x={3} y={4} width={13} height={20} rx={3} fill="#c99a5b" />
+              <rect x={24} y={4} width={13} height={20} rx={3} className="fill-accent" />
+              <path d="M6 18h7M6 21h5M27 18h7M27 21h5" stroke="white" strokeWidth={1.6} strokeLinecap="round" />
+              <path d="M10 30h20m-4-3 4 3-4 3M30 36H10m4-3-4 3 4 3" fill="none" stroke="#14305a" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-[#e7edf7]" />
+            </ComingSoonTile>
+            <ComingSoonTile label="Moji favoriti">
+              <path d="M20 34S5 25 5 15a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 10-15 19-15 19z" fill="#e25b5b" />
+              <path d="M12.5 13.5a4 4 0 0 1 4-3" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" opacity={0.7} />
+            </ComingSoonTile>
+          </ul>
 
           <div className="relative min-h-[260px] overflow-hidden rounded-[30px] border-8 border-rim bg-[linear-gradient(140deg,color-mix(in_srgb,var(--soft)_22%,var(--surface)),var(--surface)_70%)] px-[30px] py-7 shadow-card">
             <h3 className="text-[22px] font-semibold tracking-tight">Istraži mapu</h3>
