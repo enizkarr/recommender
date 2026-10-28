@@ -3,92 +3,27 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import BosniaMap from "@/components/BosniaMap";
+import FilterModal, { SlidersIcon } from "@/components/FilterModal";
 import { activities } from "@/data/activities";
 import { cities } from "@/data/cities";
 import { noFilters, prefsToQuery } from "@/lib/filtersUrl";
 import { isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
 import type { Activity, Cost, Distance, Place, Preferences } from "@/lib/types";
 
-interface FilterOption<T extends string> {
-  value: T;
-  label: string;
-  icon?: string;
-}
-
-const placeOptions: FilterOption<Preferences["place"]>[] = [
-  { value: "any", label: "Svejedno" },
-  { value: "nature", label: "Priroda", icon: "🌲" },
-  { value: "city", label: "Grad", icon: "🏙️" },
-];
-const settingOptions: FilterOption<Preferences["setting"]>[] = [
-  { value: "any", label: "Svejedno" },
-  { value: "indoor", label: "Unutra", icon: "🌧️" },
-  { value: "outdoor", label: "Vani", icon: "☀️" },
-];
-const coffeeOptions: FilterOption<Preferences["coffee"]>[] = [
-  { value: "any", label: "Svejedno" },
-  { value: "yes", label: "Da", icon: "☕" },
-  { value: "no", label: "Ne" },
-];
-const distanceOptions: FilterOption<Preferences["distance"]>[] = [
-  { value: "any", label: "Svejedno" },
-  { value: "near", label: "Blizu", icon: "📍" },
-  { value: "far", label: "Daleko", icon: "🚗" },
-];
-const budgetOptions: FilterOption<Preferences["budget"]>[] = [
-  { value: "any", label: "Nebitno" },
-  { value: "free", label: "Džabe", icon: "🆓" },
-  { value: "moderate", label: "Umjereno", icon: "💶" },
-];
-
-/** A row of pill buttons; real radio inputs underneath keep it keyboard and screen-reader friendly. */
-function FilterGroup<T extends string>({
-  legend,
-  name,
-  options,
-  value,
-  onChange,
-}: {
-  legend: string;
-  name: string;
-  options: FilterOption<T>[];
-  value: T;
-  onChange: (value: T) => void;
-}) {
-  return (
-    <fieldset className="min-w-0">
-      <legend className="mb-2 text-xs font-semibold tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
-        {legend}
-      </legend>
-      <div className="flex rounded-full bg-zinc-100 p-1 dark:bg-zinc-800">
-        {options.map((o) => (
-          <label key={o.value} className="flex-1">
-            <input
-              type="radio"
-              name={name}
-              value={o.value}
-              checked={value === o.value}
-              onChange={() => onChange(o.value)}
-              className="peer sr-only"
-            />
-            <span className="block cursor-pointer rounded-full px-3 py-1.5 text-center text-sm font-medium whitespace-nowrap text-zinc-600 transition peer-checked:bg-zinc-800 peer-checked:text-white peer-checked:shadow peer-focus-visible:ring-2 peer-focus-visible:ring-rose-500 hover:text-zinc-900 peer-checked:hover:text-white dark:text-zinc-300 dark:peer-checked:bg-zinc-100 dark:peer-checked:text-zinc-900">
-              {o.icon && (
-                <span aria-hidden className="mr-1">
-                  {o.icon}
-                </span>
-              )}
-              {o.label}
-            </span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
-
 const placeLabel: Record<Place, string> = { nature: "Priroda", city: "Grad" };
 const distanceLabel: Record<Distance, string> = { near: "Blizu", far: "Daleko" };
 const costLabel: Record<Cost, string> = { free: "Džabe", moderate: "Umjereno", expensive: "Skuplje" };
+
+/** Short names of the filters that are set, for the summary next to the "Filteri" button. */
+function filterLabels(prefs: Preferences): string[] {
+  const labels: string[] = [];
+  if (prefs.place !== "any") labels.push(placeLabel[prefs.place]);
+  if (prefs.setting !== "any") labels.push(prefs.setting === "indoor" ? "Unutra" : "Vani");
+  if (prefs.distance !== "any") labels.push(distanceLabel[prefs.distance]);
+  if (prefs.budget !== "any") labels.push(prefs.budget === "free" ? "Džabe" : "Do umjerenog budžeta");
+  if (prefs.coffee !== "any") labels.push(prefs.coffee === "yes" ? "Kafa" : "Bez kafe");
+  return labels;
+}
 
 /** "Pronađena 1 aktivnost", "Pronađene 3 aktivnosti", "Pronađeno 5 aktivnosti" (Bosnian plural forms). */
 function resultsText(count: number, nearCity: boolean): string {
@@ -166,7 +101,10 @@ function writeFiltersToUrl(prefs: Preferences | null) {
 }
 
 export default function Recommender({ initialPrefs }: { initialPrefs: Preferences | null }) {
+  // The filters chosen in the filter modal; they take effect when "Predloži" (or the modal's button) is pressed.
   const [prefs, setPrefs] = useState<Preferences>(initialPrefs ?? noFilters);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeLabels = filterLabels(prefs);
   // The filters that were active when "Predloži" was last pressed; null until the first press,
   // so every activity flows by until then. A shared link starts with its filters applied.
   const [applied, setApplied] = useState<Preferences | null>(initialPrefs);
@@ -226,16 +164,16 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
     return () => observer.disconnect();
   }, [flowing, results.length]);
 
-  function suggest() {
+  function suggest(next: Preferences) {
     clearTimeout(timer.current);
-    writeFiltersToUrl(prefs);
+    writeFiltersToUrl(next);
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setApplied(prefs);
+      setApplied(next);
       return;
     }
     setSpinning(true);
     timer.current = setTimeout(() => {
-      setApplied(prefs);
+      setApplied(next);
       setSpinning(false);
     }, SPIN_MS);
   }
@@ -272,56 +210,46 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
   return (
     <div className="space-y-8">
-      <form
-        className="mx-auto grid max-w-5xl gap-x-8 gap-y-5 rounded-3xl border border-white/60 bg-white/85 p-6 shadow-xl backdrop-blur-md md:grid-cols-2 lg:grid-cols-3 dark:border-zinc-700/60 dark:bg-zinc-900/85"
-        onSubmit={(e) => {
-          e.preventDefault();
-          suggest();
-        }}
-      >
-        <FilterGroup
-          legend="Priroda ili grad"
-          name="place"
-          options={placeOptions}
-          value={prefs.place}
-          onChange={(place) => setPrefs({ ...prefs, place })}
-        />
-        <FilterGroup
-          legend="Unutra ili vani"
-          name="setting"
-          options={settingOptions}
-          value={prefs.setting}
-          onChange={(setting) => setPrefs({ ...prefs, setting })}
-        />
-        <FilterGroup
-          legend="Kafa"
-          name="coffee"
-          options={coffeeOptions}
-          value={prefs.coffee}
-          onChange={(coffee) => setPrefs({ ...prefs, coffee })}
-        />
-        <FilterGroup
-          legend="Daljina"
-          name="distance"
-          options={distanceOptions}
-          value={prefs.distance}
-          onChange={(distance) => setPrefs({ ...prefs, distance })}
-        />
-        <FilterGroup
-          legend="Budžet"
-          name="budget"
-          options={budgetOptions}
-          value={prefs.budget}
-          onChange={(budget) => setPrefs({ ...prefs, budget })}
-        />
+      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-3 rounded-full border border-white/60 bg-white/85 p-2 shadow-xl backdrop-blur-md sm:flex-nowrap dark:border-zinc-700/60 dark:bg-zinc-900/85">
         <button
-          type="submit"
+          type="button"
+          onClick={() => setFiltersOpen(true)}
           disabled={spinning}
-          className="self-end justify-self-center rounded-full bg-zinc-800 px-10 py-2.5 font-medium text-white transition hover:bg-zinc-700 active:scale-95 disabled:opacity-60 dark:bg-zinc-200 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className="flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        >
+          <SlidersIcon />
+          Filteri
+          {activeLabels.length > 0 && (
+            <span className="grid size-5 place-items-center rounded-full bg-zinc-900 text-xs text-white dark:bg-white dark:text-zinc-900">
+              {activeLabels.length}
+            </span>
+          )}
+        </button>
+        <p className="min-w-0 flex-1 truncate px-2 text-center text-sm text-zinc-500 sm:text-left dark:text-zinc-400">
+          {activeLabels.length > 0 ? activeLabels.join(" · ") : "Bez filtera – sve aktivnosti"}
+        </p>
+        <button
+          type="button"
+          onClick={() => suggest(prefs)}
+          disabled={spinning}
+          className="shrink-0 rounded-full bg-zinc-950 px-8 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 active:scale-95 disabled:opacity-60 dark:bg-white dark:text-zinc-950"
         >
           Predloži
         </button>
-      </form>
+      </div>
+
+      {filtersOpen && (
+        <FilterModal
+          initial={prefs}
+          countFor={(p) => recommend(activities, p).filter((a) => !city || isNear(a, city.coordinates)).length}
+          onClose={() => setFiltersOpen(false)}
+          onApply={(next) => {
+            setPrefs(next);
+            setFiltersOpen(false);
+            suggest(next);
+          }}
+        />
+      )}
 
       {(applied || city) && !spinning && (
         <div className="flex flex-wrap items-center justify-center gap-3" aria-live="polite">
