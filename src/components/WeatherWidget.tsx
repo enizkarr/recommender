@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
 import { cities } from "@/data/cities";
 import { useStartLocation } from "@/lib/startLocation";
@@ -24,7 +23,7 @@ interface Weather {
   isDay: boolean;
   min: number;
   max: number;
-  /** Small grey note after min/max, saying what the numbers cover. */
+  /** Small note under the bubble, saying what the numbers cover. */
   note: string;
 }
 
@@ -45,45 +44,6 @@ function describe(code: number): { label: string; sky: Sky } {
   if (code >= 95) return { label: "Grmljavina", sky: "storm" };
   return { label: "Promjenljivo", sky: "partly" };
 }
-
-// Background photo for each sky type, with the credit their licences ask for.
-const backgrounds: Record<Sky, { src: string; credit: string; source: string }> = {
-  clear: {
-    src: "/activities/kravice.jpg",
-    credit: "Niegodzisie, CC BY-SA 4.0",
-    source: "https://commons.wikimedia.org/wiki/File:Kravica_111549.jpg",
-  },
-  partly: {
-    src: "/weather/partly-cloudy.jpg",
-    credit: "Maoileann, CC BY-SA 4.0",
-    source: "https://commons.wikimedia.org/wiki/File:Mountains-9795,_Dingle_Peninsula,_Co._Kerry,_Ireland.jpg",
-  },
-  overcast: {
-    src: "/weather/overcast.jpg",
-    credit: "Talha J Siam, CC BY 4.0",
-    source: "https://commons.wikimedia.org/wiki/File:Misty_Green_Mountains.jpg",
-  },
-  fog: {
-    src: "/weather/fog.jpg",
-    credit: "Christopher Michel, CC BY 2.0",
-    source: "https://commons.wikimedia.org/wiki/File:Morning_fog_over_Danum_Valley_(27329938517).jpg",
-  },
-  rain: {
-    src: "/weather/rain.jpg",
-    credit: "Michal Klajban, CC BY-SA 4.0",
-    source: "https://commons.wikimedia.org/wiki/File:Rain_over_Beinn_Eich,_Luss_Hills,_Scotland.jpg",
-  },
-  snow: {
-    src: "/weather/snow.jpg",
-    credit: "Pudelek, CC BY-SA 4.0",
-    source: "https://commons.wikimedia.org/wiki/File:Beskid_S%C4%85decki_in_winter_2016_05.jpg",
-  },
-  storm: {
-    src: "/weather/storm.jpg",
-    credit: "Murray Foubister, CC BY-SA 2.0",
-    source: "https://commons.wikimedia.org/wiki/File:Summer_lightning_storm_over_the_City_of_Kamloops,_BC._(19414081884).jpg",
-  },
-};
 
 // Thin white line icons in the style of the weather design.
 function Svg({ children, className = "size-5" }: { children: ReactNode; className?: string }) {
@@ -199,7 +159,7 @@ async function fetchPlace(place: string, [latitude, longitude]: [number, number]
     isDay: data.current.is_day === 1,
     min: Math.round(data.daily.temperature_2m_min[0]),
     max: Math.round(data.daily.temperature_2m_max[0]),
-    note: "danas",
+    note: "min. i maks. za danas",
   };
 }
 
@@ -210,9 +170,29 @@ function mostCommon(list: CityWeather[]): CityWeather {
   return list.reduce((best, c) => (counts.get(describe(c.code).label)! > counts.get(describe(best.code).label)! ? c : best));
 }
 
+// Painted sky behind the numbers: one gradient per sky type, and a night-time one.
+const skies: Record<Sky, string> = {
+  clear: "linear-gradient(170deg, #1f4f9c, #3f7bd0 55%, #79a8e4)",
+  partly: "linear-gradient(170deg, #2d5c9e, #5d8fcf 55%, #a3c1e6)",
+  overcast: "linear-gradient(170deg, #4a5d78, #7a8ca6 60%, #a9b6c8)",
+  fog: "linear-gradient(170deg, #66778d, #9aa7b8 60%, #c7cfda)",
+  rain: "linear-gradient(170deg, #2a4262, #4d6a8f 60%, #7f98b6)",
+  snow: "linear-gradient(170deg, #5d81ad, #9fb9d8 60%, #dfe8f3)",
+  storm: "linear-gradient(170deg, #1b2335, #39435c 60%, #5d6782)",
+};
+const nightSky = "linear-gradient(170deg, #0a1730, #183058 60%, #2c4a7a)";
+// The sun from the design, drawn in the top-right corner on clear days.
+const sun = "radial-gradient(circle at 76% 26%, #ffe9a3 0 9%, #f7c948 10% 15%, rgba(247,201,72,.35) 16% 24%, transparent 25%)";
+// Two soft clouds along the bottom edge.
+const clouds =
+  "radial-gradient(ellipse 34% 16% at 82% 80%, rgba(255,255,255,.85) 60%, transparent 62%), radial-gradient(ellipse 26% 14% at 16% 88%, rgba(255,255,255,.8) 60%, transparent 62%)";
+
+/** Uneven rounded outline, so the card reads as a bubble rather than a box. */
+const bubble = "rounded-[58%_42%_52%_48%/46%_56%_44%_54%]";
+
 /**
- * A card with the current weather at the family's starting point, or across Bosnia and Herzegovina
- * when none is set, on a photo that matches the sky.
+ * The current weather at the family's starting point, or across Bosnia and Herzegovina when none
+ * is set, as a sky-coloured bubble.
  */
 export default function WeatherWidget({ className = "" }: { className?: string }) {
   const start = useStartLocation();
@@ -244,81 +224,58 @@ export default function WeatherWidget({ className = "" }: { className?: string }
   }, [startName, startLat, startLon]);
 
   const summary = weather && describe(weather.code);
-  const background = summary && backgrounds[summary.sky];
-  const isNight = weather ? !weather.isDay : false;
+  const background = !weather
+    ? skies.overcast
+    : !weather.isDay
+      ? `${clouds.replaceAll(".8", ".18")}, ${nightSky}`
+      : summary!.sky === "clear"
+        ? `${sun}, ${clouds}, ${skies.clear}`
+        : `${clouds}, ${skies[summary!.sky]}`;
 
   return (
-    <aside
-      aria-label={`Vrijeme: ${weather?.place ?? "Bosna i Hercegovina"}`}
-      className={`relative w-80 overflow-hidden rounded-3xl text-white ${className}`}
-    >
-      {/* Background layer: slightly see-through, and fading out more towards the edges so the card
-          blends into the page. The text sits above it at full strength. */}
-      <div className="absolute inset-0 opacity-90 [mask-image:radial-gradient(ellipse_at_center,black_45%,rgba(0,0,0,0.35)_100%)]">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-600 to-slate-800" />
-        {background && <Image src={background.src} alt="" fill sizes="20rem" className="object-cover" priority />}
-        {/* Darkens the photo (more at night) so the white text stays readable */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-b ${isNight ? "from-slate-950/80 via-slate-950/60 to-slate-950/80" : "from-black/40 via-black/10 to-black/45"}`}
-        />
-      </div>
-
-      <div className="relative space-y-4 p-5">
-        {failed && !weather && <p className="text-sm text-white/80">Vrijeme trenutno nije dostupno.</p>}
+    <aside aria-label={`Vrijeme: ${weather?.place ?? "Bosna i Hercegovina"}`} className={className}>
+      <div
+        className={`relative h-[230px] overflow-hidden border-[9px] border-rim text-white shadow-soft ${bubble}`}
+        style={{ background }}
+      >
+        {failed && !weather && <p className="absolute inset-x-8 top-20 text-sm text-white/85">Vrijeme trenutno nije dostupno.</p>}
 
         {!failed && !weather && (
           // Placeholder with the same shape while the first request is on its way
-          <div className="animate-pulse space-y-3" aria-hidden>
-            <div className="h-8 w-40 rounded-lg bg-white/20" />
-            <div className="h-28 rounded-2xl bg-white/15" />
+          <div className="absolute top-14 left-8 animate-pulse space-y-3" aria-hidden>
+            <div className="h-12 w-24 rounded-lg bg-white/25" />
+            <div className="h-4 w-20 rounded bg-white/20" />
           </div>
         )}
 
         {weather && summary && (
           <>
-            <h2 className="text-3xl leading-tight font-semibold tracking-tight drop-shadow">{summary.label}</h2>
-
-            {/* Mostly see-through with a light blur, so the photo shows behind the numbers */}
-            <div className="rounded-2xl border border-white/25 bg-white/5 p-4 backdrop-blur-[2px] [text-shadow:0_1px_3px_rgba(0,0,0,0.45)]">
-              <p className="flex items-center gap-1.5 text-sm font-medium">
-                <Svg className="size-4">
-                  <path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21Z" />
-                  <circle cx={12} cy={10} r={2.3} />
-                </Svg>
-                {weather.place}
-              </p>
-              <div className="mt-1 flex items-end justify-between">
-                <p className="text-6xl leading-none font-light tracking-tight">
-                  {weather.temperature}°<span className="text-5xl">C</span>
-                </p>
-                <SkyIcon sky={summary.sky} isDay={weather.isDay} className="mb-1 size-10" />
-              </div>
-              <p className="mt-3 flex gap-4 text-sm text-white/85">
-                <span>Min {weather.min}°</span>
-                <span>Maks {weather.max}°</span>
-                <span className="text-white/60">{weather.note}</span>
-              </p>
-            </div>
-
-            {/* Brighter, with a shadow: this line sits near the faded edge of the background */}
-            <p className="text-[10px] leading-snug text-white/85 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]">
-              Podaci:{" "}
-              <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="hover:underline">
-                Open-Meteo
-              </a>
-              {updatedAt && ` · ${updatedAt.toLocaleTimeString("bs-BA", { hour: "2-digit", minute: "2-digit" })}`}
-              {background && (
-                <>
-                  {" · Foto: "}
-                  <a href={background.source} target="_blank" rel="noopener noreferrer" className="hover:underline">
-                    {background.credit}
-                  </a>
-                </>
-              )}
+            <p className="absolute top-12 left-7 text-[56px] leading-none font-medium tracking-tight">{weather.temperature}°</p>
+            <p className="absolute top-[112px] left-8 text-[17px]">{summary.label}</p>
+            <p className="absolute top-[138px] left-8 text-xs text-white/85">
+              Min {weather.min}° · Maks {weather.max}°
+            </p>
+            {/* The painted sun already shows a clear day; other skies get their icon in that corner. */}
+            {(summary.sky !== "clear" || !weather.isDay) && (
+              <SkyIcon sky={summary.sky} isDay={weather.isDay} className="absolute top-9 right-9 size-16 text-white/90" />
+            )}
+            <p className="absolute bottom-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-white/95 px-3.5 py-1 text-[13px] whitespace-nowrap text-[#14305a]">
+              <Svg className="size-3.5">
+                <path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21Z" />
+                <circle cx={12} cy={10} r={2.3} />
+              </Svg>
+              {weather.place}
             </p>
           </>
         )}
       </div>
+      <p className="mt-2 text-center text-[11px] text-muted">
+        {weather && `${weather.note[0].toUpperCase()}${weather.note.slice(1)} · `}Podaci:{" "}
+        <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
+          Open-Meteo
+        </a>
+        {updatedAt && ` · ${updatedAt.toLocaleTimeString("bs-BA", { hour: "2-digit", minute: "2-digit" })}`}
+      </p>
     </aside>
   );
 }

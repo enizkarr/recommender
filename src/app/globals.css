@@ -1,75 +1,83 @@
 @import "tailwindcss";
 
+/* Warm paper background, navy ink and a sunny accent; the dark theme swaps them for night blues. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-great-vibes);
+  --page: #f2eee6;
+  --surface: #f9f6f0;
+  --rim: #ffffff;
+  --ink: #14305a;
+  --accent: #2c5fa8;
+  --soft: #5b8fd6;
+  --muted: #6c7484;
+  --sun: #f2b632;
+  --line: #e4ddd0;
+  --shadow: 0 10px 30px rgba(40, 52, 80, 0.1), 0 2px 6px rgba(40, 52, 80, 0.06);
+  --shadow-in: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --page: #0f1828;
+    --surface: #172338;
+    --rim: #22324d;
+    --ink: #e7edf7;
+    --accent: #8db4ee;
+    --soft: #6f9fe0;
+    --muted: #9aa6ba;
+    --sun: #f5c24d;
+    --line: #2a3a56;
+    --shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.25);
+    --shadow-in: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    color-scheme: dark;
   }
 }
 
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-rim: var(--rim);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --color-soft: var(--soft);
+  --color-muted: var(--muted);
+  --color-sun: var(--sun);
+  --color-line: var(--line);
+  --shadow-soft: var(--shadow);
+  --shadow-card: var(--shadow), var(--shadow-in);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-dm-serif);
+  --font-script: var(--font-great-vibes);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-/* Background photo, fading out towards the top of the page */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: url("/background.jpg") center bottom / cover no-repeat;
-  -webkit-mask-image: linear-gradient(to top, #000 30%, transparent 95%);
-  mask-image: linear-gradient(to top, #000 30%, transparent 95%);
-  pointer-events: none;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
-/* Activity cards scrolling right to left, paused on hover */
-.marquee-viewport {
-  overflow: hidden;
-  padding-block: 3rem;
-  -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
-  mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+/* Organic outline of the featured-activity card; the rim and the photo share it (see BlobClip). */
+.blob {
+  clip-path: url(#blob-hero);
 }
 
-.marquee-track {
-  display: flex;
-  gap: 2rem;
-  width: max-content;
-  animation: marquee linear infinite;
+/* Hero photo fades in when the featured activity changes */
+.hero-photo {
+  animation: hero-in 0.4s ease-out;
 }
 
-.marquee-track:hover {
-  animation-play-state: paused;
-}
-
-/* Fast spin after pressing the button: blurred, and never paused by hover */
-.marquee-spinning {
-  filter: blur(3px);
-}
-
-.marquee-spinning:hover {
-  animation-play-state: running;
-}
-
-/* Shifts by one copy of the list (half the track) plus half the gap between the copies */
-@keyframes marquee {
-  to {
-    transform: translateX(calc(-50% - 1rem));
+@keyframes hero-in {
+  from {
+    opacity: 0.4;
   }
 }
 
@@ -97,20 +105,11 @@ body::before {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landmark-float {
+  html {
+    scroll-behavior: auto;
+  }
+  .landmark-float,
+  .hero-photo {
     animation: none;
-  }
-
-  .marquee-viewport {
-    overflow-x: auto;
-  }
-  .marquee-track {
-    animation: none;
-  }
-}
-
-@media (prefers-color-scheme: dark) {
-  body::before {
-    opacity: 0.5;
   }
 }

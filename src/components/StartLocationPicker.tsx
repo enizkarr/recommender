@@ -3,14 +3,20 @@
 import { useState } from "react";
 import { nearestTown, saveStartLocation, towns, type StartLocation } from "@/lib/startLocation";
 
-const pill =
-  "rounded-full border border-white/60 bg-white/85 shadow-lg backdrop-blur-md dark:border-zinc-700/60 dark:bg-zinc-900/85";
-
 const geoErrors: Record<number, string> = {
   1: "Pristup lokaciji je odbijen. Odaberi grad iz liste.",
   2: "Lokacija trenutno nije dostupna. Odaberi grad iz liste.",
   3: "Traženje lokacije je trajalo predugo. Pokušaj ponovo ili odaberi grad.",
 };
+
+function PinIcon({ className = "size-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={`shrink-0 ${className}`} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21Z" />
+      <circle cx={12} cy={10} r={2.3} />
+    </svg>
+  );
+}
 
 /** Sets where the family starts from: the browser's location on request, or a town from the list. */
 export default function StartLocationPicker({ location }: { location: StartLocation | null }) {
@@ -53,15 +59,18 @@ export default function StartLocationPicker({ location }: { location: StartLocat
 
   if (location) {
     return (
-      <div className={`mx-auto flex w-fit items-center gap-3 py-1.5 pr-1.5 pl-4 text-sm ${pill}`}>
-        <span className="text-zinc-700 dark:text-zinc-200">
-          🏠 Polazište: <strong className="font-semibold">{location.name}</strong>
-          {location.source === "gps" && <span className="text-zinc-500 dark:text-zinc-400"> (u blizini)</span>}
+      <div className="flex items-center gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sun text-[#14305a]">
+          <PinIcon />
         </span>
+        <p className="min-w-0 flex-1">
+          <strong className="block truncate font-medium">{location.name}</strong>
+          <span className="text-[13px] text-muted">{location.source === "gps" ? "Tvoja lokacija (u blizini)" : "Odabrani grad"}</span>
+        </p>
         <button
           type="button"
           onClick={() => saveStartLocation(null)}
-          className="rounded-full border border-zinc-200 bg-white px-3 py-1 font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          className="shrink-0 text-[13px] font-medium text-accent hover:underline"
         >
           Promijeni
         </button>
@@ -70,38 +79,36 @@ export default function StartLocationPicker({ location }: { location: StartLocat
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className={`flex flex-wrap items-center justify-center gap-2 p-1.5 text-sm ${pill}`}>
-        <button
-          type="button"
-          onClick={locate}
-          disabled={locating}
-          className="rounded-full bg-rose-600 px-4 py-2 font-medium text-white transition hover:bg-rose-700 active:scale-95 disabled:opacity-70"
-        >
-          {locating ? "Tražim lokaciju…" : "📍 Koristi moju lokaciju"}
-        </button>
-        <span className="text-zinc-500 dark:text-zinc-400">ili</span>
-        <label className="sr-only" htmlFor="start-town">
-          Odaberi grad iz kojeg krećete
-        </label>
-        <select
-          id="start-town"
-          value=""
-          onChange={(e) => pickTown(e.target.value)}
-          className="rounded-full border border-zinc-200 bg-white py-2 pr-8 pl-4 font-medium text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-        >
-          <option value="" disabled>
-            Odaberi grad
+    <div className="space-y-2.5">
+      <button
+        type="button"
+        onClick={locate}
+        disabled={locating}
+        className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-soft transition active:scale-[0.98] disabled:opacity-70"
+      >
+        <PinIcon />
+        {locating ? "Tražim lokaciju…" : "Koristi moju lokaciju"}
+      </button>
+      <label className="sr-only" htmlFor="start-town">
+        Odaberi grad iz kojeg krećete
+      </label>
+      <select
+        id="start-town"
+        value=""
+        onChange={(e) => pickTown(e.target.value)}
+        className="w-full rounded-full border-0 bg-page px-4 py-2.5 text-sm font-medium text-ink shadow-[inset_0_1px_0_var(--rim),0_1px_3px_rgba(40,52,80,.08)]"
+      >
+        <option value="" disabled>
+          ili odaberi grad
+        </option>
+        {towns.map((t) => (
+          <option key={t.name} value={t.name}>
+            {t.name}
           </option>
-          {towns.map((t) => (
-            <option key={t.name} value={t.name}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </div>
+        ))}
+      </select>
       {error && (
-        <p role="alert" className="rounded-full bg-white/85 px-4 py-1 text-sm text-rose-700 shadow backdrop-blur dark:bg-zinc-900/85 dark:text-rose-300">
+        <p role="alert" className="text-[13px] text-rose-700 dark:text-rose-300">
           {error}
         </p>
       )}

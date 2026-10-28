@@ -1,37 +1,68 @@
-import { Suspense } from "react";
+import { Suspense, type ReactNode } from "react";
 import Recommender from "@/components/Recommender";
-import WeatherWidget from "@/components/WeatherWidget";
 import { prefsFromQuery } from "@/lib/filtersUrl";
 
+function RailLink({ href, label, active = false, children }: { href: string; label: string; active?: boolean; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      aria-current={active ? "page" : undefined}
+      className={`grid w-[60px] shrink-0 justify-items-center gap-1 rounded-[22px] px-1 py-2 text-xs lg:w-[68px] lg:py-3 lg:shadow-card ${active ? "bg-ink text-surface" : "bg-surface text-ink"}`}
+    >
+      <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {children}
+      </svg>
+      {label}
+    </a>
+  );
+}
+
+/** Slim navigation rail: on the left on large screens, a bar across the top on smaller ones. */
+function Rail() {
+  return (
+    <nav
+      aria-label="Glavna navigacija"
+      className="flex items-center justify-between gap-2 overflow-x-auto rounded-[28px] bg-surface px-3.5 py-2.5 shadow-card lg:sticky lg:top-6 lg:flex-col lg:justify-start lg:gap-[18px] lg:self-start lg:overflow-visible lg:rounded-[40px] lg:px-2.5 lg:pt-[22px] lg:pb-[26px]"
+    >
+      <a href="#top" className="mr-1.5 grid shrink-0 justify-items-center gap-0.5 text-accent lg:mr-0 lg:mb-3.5">
+        <svg width="40" height="26" viewBox="0 0 40 26" fill="none" stroke="currentColor" strokeWidth={4} strokeLinecap="round" aria-hidden>
+          <path d="M3 9c6-6 11-6 17 0s11 6 17 0" />
+          <path d="M3 19c6-6 11-6 17 0s11 6 17 0" opacity={0.55} />
+        </svg>
+        <span className="hidden font-script text-[22px] leading-none whitespace-nowrap sm:block">Family Time</span>
+      </a>
+      <RailLink href="#top" label="Početna" active>
+        <path d="M12 3 2.5 11h2.7v9h5.3v-6h3v6h5.3v-9h2.7z" fill="currentColor" stroke="none" />
+      </RailLink>
+      <RailLink href="#aktivnosti" label="Istraži">
+        <circle cx={12} cy={12} r={9} />
+        <path d="m15.5 8.5-2 5-5 2 2-5z" />
+      </RailLink>
+      <RailLink href="#mapa" label="Mapa">
+        <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z" />
+        <path d="M9 4v13.5M15 6.5V20" />
+      </RailLink>
+    </nav>
+  );
+}
+
 // Not async: the URL is only read inside the Suspense boundary below,
-// so the header and the unfiltered view stay part of the prerendered page.
+// so the shell and the unfiltered view stay part of the prerendered page.
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <main className="relative flex-1 px-6 pt-20 pb-12">
-      {/* Top-left corner on large screens; above the title on smaller ones so it never covers it. */}
-      <WeatherWidget className="mx-auto mb-8 lg:absolute lg:top-6 lg:left-6 lg:z-10 lg:m-0" />
-      <header className="mx-auto mb-12 w-[60%] min-w-[16rem] text-center">
-        <h1 className="bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 bg-clip-text px-4 py-6 font-display text-[clamp(3.5rem,12vw,11rem)] leading-[1.3] font-normal tracking-normal text-transparent drop-shadow-sm">
-          Family Time
-        </h1>
-        <div className="mx-auto mt-4 h-1 w-full rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600" />
-        {/* Frosted pill so the sentence stays readable over the background photo */}
-        <p className="mt-6 inline-block rounded-3xl bg-white/75 px-6 py-2 text-xl font-semibold tracking-tight text-balance text-zinc-800 shadow-lg backdrop-blur-md md:text-2xl dark:bg-zinc-900/75 dark:text-zinc-100">
-          Otkrij zadivljujuća odredišta, stvori nezaboravne uspomene i doživi{" "}
-          <span className="bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 bg-clip-text text-transparent">
-            ljepotu naše zemlje
-          </span>{" "}
-          – putovanje po putovanje.
-        </p>
-      </header>
-      <div className="mx-auto w-full max-w-[150rem]">
+    <div
+      id="top"
+      className="mx-auto grid w-full max-w-[1240px] grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-[92px_minmax(0,1fr)] lg:gap-7"
+    >
+      <Rail />
+      <main className="min-w-0">
         <Suspense fallback={<Recommender initialPrefs={null} />}>
           {/* A shared link like ?mjesto=priroda opens with those filters already applied. */}
           {searchParams.then((query) => (
             <Recommender initialPrefs={prefsFromQuery(query)} />
           ))}
         </Suspense>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

@@ -99,11 +99,11 @@ function Segmented<T extends string>({
   return (
     <fieldset className="min-w-0">
       {legend ? (
-        <legend className="mb-2 text-sm text-zinc-500 dark:text-zinc-400">{legend}</legend>
+        <legend className="mb-2 text-sm text-muted">{legend}</legend>
       ) : (
         <legend className="sr-only">Priroda ili grad</legend>
       )}
-      <div className="flex rounded-full bg-zinc-100 p-1 dark:bg-zinc-800">
+      <div className="flex rounded-full bg-page p-1">
         {options.map((o) => (
           <label key={o.value} className="flex-1">
             <input
@@ -115,7 +115,7 @@ function Segmented<T extends string>({
               className="peer sr-only"
             />
             <span
-              className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-full text-sm whitespace-nowrap text-zinc-400 transition peer-checked:bg-white peer-checked:font-medium peer-checked:text-zinc-900 peer-checked:shadow-[0_1px_4px_rgba(0,0,0,0.12)] peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-900 hover:text-zinc-700 dark:text-zinc-500 dark:peer-checked:bg-zinc-950 dark:peer-checked:text-white ${large ? "px-3 py-2.5" : "px-3 py-2"}`}
+              className={`flex cursor-pointer items-center justify-center gap-1.5 rounded-full text-sm whitespace-nowrap text-muted transition peer-checked:bg-surface peer-checked:font-medium peer-checked:text-ink peer-checked:shadow-[0_1px_4px_rgba(0,0,0,0.12)] peer-focus-visible:ring-2 peer-focus-visible:ring-accent hover:text-ink ${large ? "px-3 py-2.5" : "px-3 py-2"}`}
             >
               {o.icon}
               {o.label}
@@ -129,17 +129,17 @@ function Segmented<T extends string>({
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 text-sm text-zinc-500 dark:text-zinc-400">
+    <label className="flex cursor-pointer items-center justify-between gap-4 text-sm text-muted">
       {label}
       <button
         type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2 focus-visible:outline-none ${checked ? "bg-zinc-900 dark:bg-zinc-100" : "bg-zinc-200 dark:bg-zinc-700"}`}
+        className={`relative h-6 w-11 shrink-0 rounded-full transition focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:outline-none ${checked ? "bg-ink" : "bg-line"}`}
       >
         <span
-          className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-white shadow transition-transform dark:bg-zinc-900 ${checked ? "translate-x-5" : ""}`}
+          className={`absolute top-0.5 left-0.5 size-5 rounded-full bg-surface shadow transition-transform ${checked ? "translate-x-5" : ""}`}
         />
       </button>
     </label>
@@ -186,7 +186,7 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
       }}
       // A click on the dialog element itself (not its content) is a click on the backdrop.
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      className="filter-modal m-auto max-h-[calc(100dvh-2rem)] w-[min(26rem,calc(100%-2rem))] overflow-y-auto rounded-3xl bg-white p-0 text-zinc-900 shadow-2xl backdrop:bg-zinc-900/30 backdrop:backdrop-blur-[2px] dark:bg-zinc-900 dark:text-zinc-100"
+      className="filter-modal m-auto max-h-[calc(100dvh-2rem)] w-[min(26rem,calc(100%-2rem))] overflow-y-auto rounded-3xl bg-surface p-0 text-ink shadow-2xl backdrop:bg-[#14305a]/30 backdrop:backdrop-blur-[2px]"
     >
       <form
         method="dialog"
@@ -198,13 +198,13 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
       >
         <div className="space-y-6 p-6">
           <div className="flex items-center justify-between gap-4">
-            <h2 id="filter-title" className="text-xl font-semibold tracking-tight">
+            <h2 id="filter-title" className="font-serif text-2xl">
               Filteri
             </h2>
             <button
               type="button"
               onClick={() => setDraft(noFilters)}
-              className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              className="rounded-full border border-line px-4 py-2 text-sm font-medium transition hover:bg-page"
             >
               Poništi filtere
             </button>
@@ -240,7 +240,7 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
               onChange={(radius) => setDraft({ ...draft, radius })}
             />
           ) : (
-            <p className="rounded-2xl bg-zinc-100 px-4 py-3 text-sm text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <p className="rounded-2xl bg-page px-4 py-3 text-sm text-muted">
               Postavi polazište (📍 iznad filtera) da biraš aktivnosti po kilometrima.
             </p>
           )}
@@ -262,17 +262,17 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 p-4 dark:border-zinc-800">
+        <div className="grid grid-cols-2 gap-3 border-t border-line p-4">
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl border border-zinc-200 py-3 text-sm font-medium transition hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+            className="rounded-full border border-line py-3 text-sm font-medium transition hover:bg-page"
           >
             Odustani
           </button>
           <button
             type="submit"
-            className="rounded-xl bg-zinc-950 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 active:scale-[0.98] dark:bg-white dark:text-zinc-950"
+            className="rounded-full bg-ink py-3 text-sm font-medium text-surface transition hover:opacity-90 active:scale-[0.98]"
           >
             {showResultsText(count)}
           </button>

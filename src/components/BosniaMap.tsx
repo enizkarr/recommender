@@ -63,7 +63,7 @@ function inLens(lens: Lens, [x, y]: [number, number]): boolean {
   return x >= lens.x && x <= lens.x + LENS_W && y >= lens.y && y <= lens.y + LENS_H;
 }
 
-// City badges are little map pins: a white circle with the landmark, whose tip touches the city.
+// City badges are little map pins: a light circle with the landmark, whose tip touches the city.
 const BADGE_RADIUS = 24;
 const CAPITAL_BADGE_RADIUS = 28;
 const PIN_TIP = 7; // gap between the circle and the city point
@@ -115,12 +115,12 @@ function MapLayers({
         </clipPath>
       </defs>
 
-      <path d={outline} className="fill-white" />
+      <path d={outline} className="fill-[color-mix(in_srgb,var(--soft)_35%,var(--surface))]" />
 
       <g
         clipPath={`url(#${clipId})`}
         fill="none"
-        className="stroke-zinc-300"
+        className="stroke-rim"
         strokeWidth={unit === 1 ? 2 : 1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -134,7 +134,7 @@ function MapLayers({
       <path
         d={outline}
         fill="none"
-        className="stroke-black"
+        className="stroke-ink"
         strokeWidth={unit === 1 ? 4 : 3}
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
@@ -146,12 +146,12 @@ function MapLayers({
         const iconScale = (r * 1.6) / 24;
         const { dx, dy, anchor } = labelPosition(c.label, r / unit);
         const selected = c.name === selectedCity;
-        const outlineClass = selected ? "fill-white stroke-rose-500" : "fill-white stroke-zinc-400";
+        const outlineClass = selected ? "fill-surface stroke-accent" : "fill-surface stroke-muted/60";
         const outlineWidth = (selected ? 3.5 : 1.5) * unit;
         return (
           <g
             key={c.name}
-            className="cursor-pointer fill-zinc-600"
+            className="cursor-pointer fill-ink"
             onPointerEnter={() => onHoverCity(c.name)}
             onPointerLeave={() => onHoverCity(null)}
             onClick={() => onSelectCity(c.name)}
@@ -172,14 +172,14 @@ function MapLayers({
             {/* Names only on the full map: the zoomed box already names the city in its heading,
                 and a label there would sit on top of the activity dots. */}
             {unit === 1 && (
-              // The white stroke behind the text keeps names readable on top of roads.
+              // The light stroke behind the text keeps names readable on top of roads.
               <text
                 x={x + dx}
                 y={cy + dy}
                 textAnchor={anchor}
                 fontSize={c.capital ? 30 : 24}
                 fontWeight={c.capital ? 600 : 500}
-                stroke="white"
+                className="stroke-surface"
                 strokeWidth={6}
                 strokeLinejoin="round"
                 paintOrder="stroke"
@@ -202,7 +202,7 @@ interface Props {
   activeId: string | null;
   onSelect: (id: string) => void;
   onHover: (id: string | null) => void;
-  /** City whose surroundings the cards are limited to, drawn with a rose outline. */
+  /** City whose surroundings the cards are limited to, drawn with an accent outline. */
   selectedCity: string | null;
   /** A city badge was clicked. */
   onSelectCity: (name: string) => void;
@@ -233,10 +233,10 @@ function Dot({ activity: a, highlighted, active, x, y, onSelect, onHover }: DotP
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
       <span
-        className={`block size-4 rounded-full ring-2 transition group-hover:scale-125 group-focus-visible:scale-125 ${active ? "scale-150 ring-rose-300" : "ring-white"} ${highlighted ? "bg-rose-600" : "bg-zinc-400"}`}
+        className={`block size-4 rounded-full ring-2 transition group-hover:scale-125 group-focus-visible:scale-125 ${active ? "scale-150 ring-sun" : "ring-rim"} ${highlighted ? "bg-accent" : "bg-muted/50"}`}
       />
       <span
-        className={`pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-xs text-white shadow group-hover:block group-focus-visible:block ${active ? "block" : "hidden"}`}
+        className={`pointer-events-none absolute bottom-full left-1/2 mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-surface shadow group-hover:block group-focus-visible:block ${active ? "block" : "hidden"}`}
       >
         {a.title}
       </span>
@@ -248,16 +248,16 @@ function Dot({ activity: a, highlighted, active, x, y, onSelect, onHover }: DotP
 function CityTooltip({ city, selected, x, y }: { city: City; selected: boolean; x: number; y: number }) {
   return (
     <span
-      className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-zinc-900 px-2 py-1 text-xs text-white shadow"
+      className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-surface shadow"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
       <span className="font-semibold">{city.name}</span> · {city.landmark}
-      <span className="block text-zinc-400">{selected ? "Klikni za sve aktivnosti" : "Klikni za aktivnosti u blizini"}</span>
+      <span className="block opacity-70">{selected ? "Klikni za sve aktivnosti" : "Klikni za aktivnosti u blizini"}</span>
     </span>
   );
 }
 
-/** A white map of Bosnia and Herzegovina with main roads, big cities, a dot for every activity and a movable magnifier. */
+/** A soft blue map of Bosnia and Herzegovina with main roads, big cities, a dot for every activity and a movable magnifier. */
 export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover, selectedCity, onSelectCity }: Props) {
   const clipId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
@@ -310,7 +310,7 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
 
   return (
     <div ref={mapRef} className="relative">
-      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="block h-auto w-full drop-shadow-2xl" aria-hidden>
+      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="block h-auto w-full drop-shadow-xl" aria-hidden>
         <MapLayers
           clipId={`${clipId}-map`}
           unit={1}
@@ -342,7 +342,7 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
         onPointerUp={() => (drag.current = null)}
         onPointerCancel={() => (drag.current = null)}
         onKeyDown={moveWithKeys}
-        className="absolute z-20 cursor-grab touch-none rounded border-[2.5px] border-dashed border-rose-500 bg-rose-500/10 outline-none focus-visible:ring-2 focus-visible:ring-rose-500 active:cursor-grabbing"
+        className="absolute z-20 cursor-grab touch-none rounded border-[2.5px] border-dashed border-accent bg-accent/10 outline-none focus-visible:ring-2 focus-visible:ring-accent active:cursor-grabbing"
         style={{
           left: `${(lens.x / VIEW_WIDTH) * 100}%`,
           top: `${(lens.y / VIEW_HEIGHT) * 100}%`,
@@ -352,14 +352,14 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
       />
 
       <div
-        className="absolute bottom-[3%] left-0 rounded-xl border-2 border-black bg-white p-2 shadow-xl"
+        className="absolute bottom-[3%] left-0 rounded-2xl border-[6px] border-rim bg-surface p-2 shadow-soft"
         style={{ width: `${INSET_WIDTH * 100}%` }}
       >
-        <p className="mb-1 flex items-baseline justify-between gap-2 text-xs font-semibold tracking-wider text-rose-600 uppercase">
+        <p className="mb-1 flex items-baseline justify-between gap-2 text-xs font-semibold tracking-wider text-accent uppercase">
           <span>{cityInLens ? cityInLens.name : "Uvećani prikaz"}</span>
-          <span className="font-normal tracking-normal text-zinc-400 normal-case">pomjeri okvir na mapi</span>
+          <span className="font-normal tracking-normal text-muted normal-case">pomjeri okvir na mapi</span>
         </p>
-        <div className="relative overflow-hidden rounded-md bg-zinc-100" style={{ aspectRatio: LENS_W / LENS_H }}>
+        <div className="relative overflow-hidden rounded-md bg-page" style={{ aspectRatio: LENS_W / LENS_H }}>
           <svg
             viewBox={`${lens.x} ${lens.y} ${LENS_W} ${LENS_H}`}
             className="absolute inset-0 block h-full w-full"
