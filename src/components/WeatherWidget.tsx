@@ -3,8 +3,9 @@
 import Image from "next/image";
 import { useEffect, useState, type ReactNode } from "react";
 import { cities } from "@/data/cities";
+import { useStartLocation } from "@/lib/startLocation";
 
-// Spread across the country; only their combined weather is shown, as a picture of the whole of BiH.
+// Spread across the country; without a starting point their combined weather is shown, as a picture of the whole of BiH.
 const WEATHER_CITIES = ["Sarajevo", "Banja Luka", "Mostar", "Tuzla", "Bihać"];
 const REFRESH_MS = 15 * 60 * 1000;
 
@@ -13,6 +14,18 @@ interface CityWeather {
   temperature: number;
   code: number;
   isDay: boolean;
+}
+
+/** What the card shows: one place's weather, or the whole country summed up. */
+interface Weather {
+  place: string;
+  temperature: number;
+  code: number;
+  isDay: boolean;
+  min: number;
+  max: number;
+  /** Small grey note after min/max, saying what the numbers cover. */
+  note: string;
 }
 
 type Sky = "clear" | "partly" | "overcast" | "fog" | "rain" | "snow" | "storm";
@@ -132,7 +145,7 @@ function SkyIcon({ sky, isDay, className }: { sky: Sky; isDay: boolean; classNam
   return <Svg className={className}>{cloud}</Svg>;
 }
 
-async function fetchWeather(): Promise<CityWeather[]> {
+async function fetchCountry(): Promise<Weather> {
   const picked = WEATHER_CITIES.map((name) => cities.find((c) => c.name === name)!);
   const params = new URLSearchParams({
     latitude: picked.map((c) => c.coordinates[0]).join(","),
@@ -144,12 +157,50 @@ async function fetchWeather(): Promise<CityWeather[]> {
   if (!res.ok) throw new Error(`Open-Meteo: ${res.status}`);
   // With several locations the API answers with one entry per location, in the same order.
   const data: { current: { temperature_2m: number; weather_code: number; is_day: number } }[] = await res.json();
-  return data.map((d, i) => ({
+  const list: CityWeather[] = data.map((d, i) => ({
     name: picked[i].name,
     temperature: Math.round(d.current.temperature_2m),
     code: d.current.weather_code,
     isDay: d.current.is_day === 1,
   }));
+  const overall = mostCommon(list);
+  const temps = list.map((c) => c.temperature);
+  return {
+    place: "Bosna i Hercegovina",
+    temperature: Math.round(temps.reduce((sum, t) => sum + t, 0) / temps.length),
+    code: overall.code,
+    isDay: overall.isDay,
+    min: Math.min(...temps),
+    max: Math.max(...temps),
+    note: `prosjek ${list.length} ${list.length >= 5 ? "gradova" : "grada"}`,
+  };
+}
+
+/** Current weather at the starting point, with today's lowest and highest temperature there. */
+async function fetchPlace(place: string, [latitude, longitude]: [number, number]): Promise<Weather> {
+  const params = new URLSearchParams({
+    latitude: String(latitude),
+    longitude: String(longitude),
+    current: "temperature_2m,weather_code,is_day",
+    daily: "temperature_2m_min,temperature_2m_max",
+    forecast_days: "1",
+    timezone: "Europe/Sarajevo",
+  });
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+  if (!res.ok) throw new Error(`Open-Meteo: ${res.status}`);
+  const data: {
+    current: { temperature_2m: number; weather_code: number; is_day: number };
+    daily: { temperature_2m_min: number[]; temperature_2m_max: number[] };
+  } = await res.json();
+  return {
+    place,
+    temperature: Math.round(data.current.temperature_2m),
+    code: data.current.weather_code,
+    isDay: data.current.is_day === 1,
+    min: Math.round(data.daily.temperature_2m_min[0]),
+    max: Math.round(data.daily.temperature_2m_max[0]),
+    note: "danas",
+  };
 }
 
 /** The condition shared by the most cities; ties go to the first city in the list. */
@@ -159,16 +210,24 @@ function mostCommon(list: CityWeather[]): CityWeather {
   return list.reduce((best, c) => (counts.get(describe(c.code).label)! > counts.get(describe(best.code).label)! ? c : best));
 }
 
-/** A card with the current weather across Bosnia and Herzegovina, on a photo that matches the sky. */
+/**
+ * A card with the current weather at the family's starting point, or across Bosnia and Herzegovina
+ * when none is set, on a photo that matches the sky.
+ */
 export default function WeatherWidget({ className = "" }: { className?: string }) {
-  const [weather, setWeather] = useState<CityWeather[] | null>(null);
+  const start = useStartLocation();
+  // Plain values, so the weather is only fetched again when the place really changes.
+  const startName = start?.name;
+  const startLat = start?.coordinates[0];
+  const startLon = start?.coordinates[1];
+  const [weather, setWeather] = useState<Weather | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const load = () =>
-      fetchWeather()
+      (startName && startLat !== undefined && startLon !== undefined ? fetchPlace(startName, [startLat, startLon]) : fetchCountry())
         .then((w) => {
           if (cancelled) return;
           setWeather(w);
@@ -182,18 +241,15 @@ export default function WeatherWidget({ className = "" }: { className?: string }
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [startName, startLat, startLon]);
 
-  const overall = weather && mostCommon(weather);
-  const summary = overall && describe(overall.code);
-  const temps = weather?.map((c) => c.temperature) ?? [];
-  const average = weather && Math.round(temps.reduce((sum, t) => sum + t, 0) / temps.length);
+  const summary = weather && describe(weather.code);
   const background = summary && backgrounds[summary.sky];
-  const isNight = overall ? !overall.isDay : false;
+  const isNight = weather ? !weather.isDay : false;
 
   return (
     <aside
-      aria-label="Vrijeme u Bosni i Hercegovini"
+      aria-label={`Vrijeme: ${weather?.place ?? "Bosna i Hercegovina"}`}
       className={`relative w-80 overflow-hidden rounded-3xl text-white ${className}`}
     >
       {/* Background layer: slightly see-through, and fading out more towards the edges so the card
@@ -218,7 +274,7 @@ export default function WeatherWidget({ className = "" }: { className?: string }
           </div>
         )}
 
-        {weather && summary && overall && (
+        {weather && summary && (
           <>
             <h2 className="text-3xl leading-tight font-semibold tracking-tight drop-shadow">{summary.label}</h2>
 
@@ -229,20 +285,18 @@ export default function WeatherWidget({ className = "" }: { className?: string }
                   <path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21Z" />
                   <circle cx={12} cy={10} r={2.3} />
                 </Svg>
-                Bosna i Hercegovina
+                {weather.place}
               </p>
               <div className="mt-1 flex items-end justify-between">
                 <p className="text-6xl leading-none font-light tracking-tight">
-                  {average}°<span className="text-5xl">C</span>
+                  {weather.temperature}°<span className="text-5xl">C</span>
                 </p>
-                <SkyIcon sky={summary.sky} isDay={overall.isDay} className="mb-1 size-10" />
+                <SkyIcon sky={summary.sky} isDay={weather.isDay} className="mb-1 size-10" />
               </div>
               <p className="mt-3 flex gap-4 text-sm text-white/85">
-                <span>Min {Math.min(...temps)}°</span>
-                <span>Maks {Math.max(...temps)}°</span>
-                <span className="text-white/60">
-                  prosjek {weather.length} {weather.length >= 5 ? "gradova" : "grada"}
-                </span>
+                <span>Min {weather.min}°</span>
+                <span>Maks {weather.max}°</span>
+                <span className="text-white/60">{weather.note}</span>
               </p>
             </div>
 
