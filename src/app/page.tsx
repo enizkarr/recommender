@@ -1,12 +1,15 @@
 import { Suspense } from "react";
 import Recommender from "@/components/Recommender";
+import WeatherWidget from "@/components/WeatherWidget";
 import { prefsFromQuery } from "@/lib/filtersUrl";
 
 // Not async: the URL is only read inside the Suspense boundary below,
 // so the header and the unfiltered view stay part of the prerendered page.
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <main className="flex-1 px-6 pt-20 pb-12">
+    <main className="relative flex-1 px-6 pt-20 pb-12">
+      {/* Top-left corner on large screens; above the title on smaller ones so it never covers it. */}
+      <WeatherWidget className="mx-auto mb-8 lg:absolute lg:top-6 lg:left-6 lg:z-10 lg:m-0" />
       <header className="mx-auto mb-12 w-[60%] min-w-[16rem] text-center">
         <h1 className="bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 bg-clip-text px-4 py-6 font-display text-[clamp(3.5rem,12vw,11rem)] leading-[1.3] font-normal tracking-normal text-transparent drop-shadow-sm">
           Family Time
