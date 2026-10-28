@@ -17,11 +17,11 @@ export default function Home({ searchParams }: PageProps<"/">) {
         <div className="mx-auto mt-4 h-1 w-full rounded-full bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600" />
         {/* Frosted pill so the sentence stays readable over the background photo */}
         <p className="mt-6 inline-block rounded-3xl bg-white/75 px-6 py-2 text-xl font-semibold tracking-tight text-balance text-zinc-800 shadow-lg backdrop-blur-md md:text-2xl dark:bg-zinc-900/75 dark:text-zinc-100">
-          Otkrij sa svojom porodicom mjesta{" "}
+          Otkrij zadivljujuća odredišta, stvori nezaboravne uspomene i doživi{" "}
           <span className="bg-gradient-to-r from-amber-500 via-rose-500 to-indigo-600 bg-clip-text text-transparent">
-            na kojima još niste bili
-          </span>
-          .
+            ljepotu naše zemlje
+          </span>{" "}
+          – putovanje po putovanje.
         </p>
       </header>
       <div className="mx-auto w-full max-w-[150rem]">
