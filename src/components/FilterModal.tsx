@@ -65,6 +65,12 @@ const distanceOptions: Option<Preferences["distance"]>[] = [
   { value: "near", label: "Blizu" },
   { value: "far", label: "Daleko" },
 ];
+const radiusOptions: Option<Preferences["radius"]>[] = [
+  { value: "any", label: "Svejedno" },
+  { value: "30", label: "Do 30 km" },
+  { value: "60", label: "Do 60 km" },
+  { value: "120", label: "Do 120 km" },
+];
 const budgetOptions: Option<Preferences["budget"]>[] = [
   { value: "any", label: "Nebitno" },
   { value: "free", label: "Džabe" },
@@ -152,13 +158,15 @@ interface Props {
   countFor: (prefs: Preferences) => number;
   onApply: (prefs: Preferences) => void;
   onClose: () => void;
+  /** Name of the starting point; the kilometre limit can only be used once one is set. */
+  startName?: string;
 }
 
 /**
  * The filters as a modal dialog. Mount it to open it and unmount it to close it; changes are only
  * kept when "Prikaži … rezultata" is pressed.
  */
-export default function FilterModal({ initial, countFor, onApply, onClose }: Props) {
+export default function FilterModal({ initial, countFor, onApply, onClose, startName }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [draft, setDraft] = useState(initial);
   const count = countFor(draft);
@@ -223,6 +231,19 @@ export default function FilterModal({ initial, countFor, onApply, onClose }: Pro
             value={draft.distance}
             onChange={(distance) => setDraft({ ...draft, distance })}
           />
+          {startName ? (
+            <Segmented
+              legend={`Udaljenost od polazišta (${startName})`}
+              name="radius"
+              options={radiusOptions}
+              value={draft.radius}
+              onChange={(radius) => setDraft({ ...draft, radius })}
+            />
+          ) : (
+            <p className="rounded-2xl bg-zinc-100 px-4 py-3 text-sm text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              Postavi polazište (📍 iznad filtera) da biraš aktivnosti po kilometrima.
+            </p>
+          )}
           <Segmented
             legend="Budžet"
             name="budget"

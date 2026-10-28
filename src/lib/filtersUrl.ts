@@ -6,6 +6,7 @@ export const noFilters: Preferences = {
   setting: "any",
   distance: "any",
   budget: "any",
+  radius: "any",
 };
 
 // URL parameter name and value for each filter, in Bosnian so shared links read naturally,
@@ -16,6 +17,7 @@ const params = {
   setting: { name: "prostor", values: { indoor: "unutra", outdoor: "vani" } },
   distance: { name: "daljina", values: { near: "blizu", far: "daleko" } },
   budget: { name: "budzet", values: { free: "dzabe", moderate: "umjereno" } },
+  radius: { name: "km", values: { "30": "30", "60": "60", "120": "120" } },
 } as const;
 
 type Key = keyof typeof params;

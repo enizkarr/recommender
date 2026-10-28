@@ -6,8 +6,11 @@ const allowedCosts: Record<Budget, Cost[]> = {
   any: ["free", "moderate", "expensive"],
 };
 
-/** Returns activities that fit the preferences, best matches first. */
-export function recommend(activities: Activity[], prefs: Preferences): Activity[] {
+/**
+ * Returns activities that fit the preferences, best matches first. The distance limit only applies
+ * when a starting point ([latitude, longitude]) is given.
+ */
+export function recommend(activities: Activity[], prefs: Preferences, from?: [number, number]): Activity[] {
   return activities
     .filter(
       (a) =>
@@ -15,7 +18,8 @@ export function recommend(activities: Activity[], prefs: Preferences): Activity[
         (prefs.coffee === "any" || a.coffee === (prefs.coffee === "yes")) &&
         (prefs.setting === "any" || a.indoor === (prefs.setting === "indoor")) &&
         (prefs.distance === "any" || a.distance === prefs.distance) &&
-        allowedCosts[prefs.budget].includes(a.cost),
+        allowedCosts[prefs.budget].includes(a.cost) &&
+        (prefs.radius === "any" || !from || distanceKm(from, a.coordinates) <= Number(prefs.radius)),
     )
     .sort((a, b) => b.durationHours - a.durationHours);
 }

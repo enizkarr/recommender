@@ -3,6 +3,8 @@ export type Setting = "indoor" | "outdoor";
 export type Distance = "near" | "far";
 export type Cost = "free" | "moderate" | "expensive";
 export type Budget = "free" | "moderate" | "any";
+/** Furthest an activity may be from the starting point, in kilometres. */
+export type Radius = "30" | "60" | "120";
 
 /** "any" means the filter is not applied. */
 export type Choice<T> = T | "any";
@@ -38,4 +40,6 @@ export interface Preferences {
   setting: Choice<Setting>;
   distance: Choice<Distance>;
   budget: Budget;
+  /** Only applied once a starting point is set. */
+  radius: Choice<Radius>;
 }

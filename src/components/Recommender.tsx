@@ -17,13 +17,15 @@ const distanceLabel: Record<Distance, string> = { near: "Blizu", far: "Daleko" }
 const costLabel: Record<Cost, string> = { free: "Džabe", moderate: "Umjereno", expensive: "Skuplje" };
 
 /** Short names of the filters that are set, for the summary next to the "Filteri" button. */
-function filterLabels(prefs: Preferences): string[] {
+function filterLabels(prefs: Preferences, hasStart: boolean): string[] {
   const labels: string[] = [];
   if (prefs.place !== "any") labels.push(placeLabel[prefs.place]);
   if (prefs.setting !== "any") labels.push(prefs.setting === "indoor" ? "Unutra" : "Vani");
   if (prefs.distance !== "any") labels.push(distanceLabel[prefs.distance]);
   if (prefs.budget !== "any") labels.push(prefs.budget === "free" ? "Džabe" : "Do umjerenog budžeta");
   if (prefs.coffee !== "any") labels.push(prefs.coffee === "yes" ? "Kafa" : "Bez kafe");
+  // The kilometre limit does nothing without a starting point, so it is not listed then.
+  if (prefs.radius !== "any" && hasStart) labels.push(`Do ${prefs.radius} km`);
   return labels;
 }
 
@@ -111,16 +113,18 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
   // The filters chosen in the filter modal; they take effect when "Predloži" (or the modal's button) is pressed.
   const [prefs, setPrefs] = useState<Preferences>(initialPrefs ?? noFilters);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const activeLabels = filterLabels(prefs);
+  const start = useStartLocation();
+  const activeLabels = filterLabels(prefs, !!start);
   // The filters that were active when "Predloži" was last pressed; null until the first press,
   // so every activity flows by until then. A shared link starts with its filters applied.
   const [applied, setApplied] = useState<Preferences | null>(initialPrefs);
   // City picked on the map: only activities around it are shown, on top of the other filters.
   const [cityName, setCityName] = useState<string | null>(null);
-  const start = useStartLocation();
   const kmFromStart = (a: Activity) => (start ? distanceKm(start.coordinates, a.coordinates) : undefined);
   const city = cities.find((c) => c.name === cityName);
-  const results = recommend(activities, applied ?? noFilters).filter((a) => !city || isNear(a, city.coordinates));
+  const matching = (p: Preferences) =>
+    recommend(activities, p, start?.coordinates).filter((a) => !city || isNear(a, city.coordinates));
+  const results = matching(applied ?? noFilters);
   // While true the cards spin very fast; the filters are applied when the spin ends.
   const [spinning, setSpinning] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -252,7 +256,8 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
       {filtersOpen && (
         <FilterModal
           initial={prefs}
-          countFor={(p) => recommend(activities, p).filter((a) => !city || isNear(a, city.coordinates)).length}
+          countFor={(p) => matching(p).length}
+          startName={start?.name}
           onClose={() => setFiltersOpen(false)}
           onApply={(next) => {
             setPrefs(next);
