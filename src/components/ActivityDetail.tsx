@@ -104,7 +104,7 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
       }}
       // A click on the dialog element itself (not its content) is a click on the backdrop.
       onClick={(e) => e.target === e.currentTarget && onClose()}
-      className="activity-detail m-0 h-dvh max-h-none w-full max-w-none overflow-y-auto bg-surface p-0 text-ink shadow-2xl backdrop:bg-[#14305a]/40 backdrop:backdrop-blur-[2px] sm:m-auto sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(44rem,calc(100%-2rem))] sm:rounded-[30px]"
+      className="activity-detail m-0 h-dvh max-h-none w-full max-w-none overflow-y-auto bg-surface [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-0 text-ink shadow-2xl backdrop:bg-[#14305a]/40 backdrop:backdrop-blur-[2px] sm:m-auto sm:h-auto sm:max-h-[calc(100dvh-2rem)] sm:w-[min(44rem,calc(100%-2rem))] sm:rounded-[30px]"
     >
       {/* Zero-height sticky row, so the close button stays in the corner while the content scrolls */}
       <div className="sticky top-0 z-10 flex h-0 justify-end p-3">
