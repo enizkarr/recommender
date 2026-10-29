@@ -324,17 +324,6 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
             className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted"
           />
         </label>
-        <div
-          className="hidden size-16 shrink-0 place-items-center rounded-full border-4 border-rim bg-[linear-gradient(160deg,#f6d27a,#e98c63)] text-white shadow-soft sm:grid"
-          aria-hidden
-        >
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx={8} cy={7} r={3} />
-            <circle cx={16} cy={7} r={3} />
-            <circle cx={12} cy={13.5} r={2.2} />
-            <path d="M2.5 21c0-4 2.4-7 5.5-7 1 0 1.9.3 2.6.8-.9.9-1.4 2.2-1.4 3.7V21zm19 0c0-4-2.4-7-5.5-7-1 0-1.9.3-2.6.8.9.9 1.4 2.2 1.4 3.7V21zM9.6 21v-1.5c0-1.8 1.1-3 2.4-3s2.4 1.2 2.4 3V21z" />
-          </svg>
-        </div>
       </header>
 
       <section className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_270px]">
