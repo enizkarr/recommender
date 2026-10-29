@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cities } from "@/data/cities";
 import { useStartLocation } from "@/lib/startLocation";
 
@@ -187,6 +187,12 @@ const sun = "radial-gradient(circle at 76% 26%, #ffe9a3 0 9%, #f7c948 10% 15%, r
 const clouds =
   "radial-gradient(ellipse 34% 16% at 82% 80%, rgba(255,255,255,.85) 60%, transparent 62%), radial-gradient(ellipse 26% 14% at 16% 88%, rgba(255,255,255,.8) 60%, transparent 62%)";
 
+/** Whether a weather code means a day for staying under a roof (rain, showers or a storm). */
+export function isRainy(code: number): boolean {
+  const { sky } = describe(code);
+  return sky === "rain" || sky === "storm";
+}
+
 /** Uneven rounded outline, so the card reads as a bubble rather than a box. */
 const bubble = "rounded-[58%_42%_52%_48%/46%_56%_44%_54%]";
 
@@ -194,7 +200,14 @@ const bubble = "rounded-[58%_42%_52%_48%/46%_56%_44%_54%]";
  * The current weather at the family's starting point, or across Bosnia and Herzegovina when none
  * is set, as a sky-coloured bubble.
  */
-export default function WeatherWidget({ className = "" }: { className?: string }) {
+export default function WeatherWidget({
+  className = "",
+  onWeather,
+}: {
+  className?: string;
+  /** Called with the weather code after each load, or null when the weather could not be loaded. */
+  onWeather?: (code: number | null) => void;
+}) {
   const start = useStartLocation();
   // Plain values, so the weather is only fetched again when the place really changes.
   const startName = start?.name;
@@ -203,6 +216,11 @@ export default function WeatherWidget({ className = "" }: { className?: string }
   const [weather, setWeather] = useState<Weather | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [failed, setFailed] = useState(false);
+  // Kept in a ref so a new callback on every parent render does not start a new request.
+  const report = useRef(onWeather);
+  useEffect(() => {
+    report.current = onWeather;
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -213,8 +231,13 @@ export default function WeatherWidget({ className = "" }: { className?: string }
           setWeather(w);
           setUpdatedAt(new Date());
           setFailed(false);
+          report.current?.(w.code);
         })
-        .catch(() => !cancelled && setFailed(true));
+        .catch(() => {
+          if (cancelled) return;
+          setFailed(true);
+          report.current?.(null);
+        });
     load();
     const interval = setInterval(load, REFRESH_MS);
     return () => {

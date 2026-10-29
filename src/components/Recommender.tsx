@@ -7,10 +7,11 @@ import BosniaMap from "@/components/BosniaMap";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
 import MapTeaser from "@/components/MapTeaser";
 import StartLocationPicker from "@/components/StartLocationPicker";
-import WeatherWidget from "@/components/WeatherWidget";
+import WeatherWidget, { isRainy } from "@/components/WeatherWidget";
 import { activities } from "@/data/activities";
 import { cities } from "@/data/cities";
 import { noFilters, prefsToQuery } from "@/lib/filtersUrl";
+import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
 import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
 import { formatKm, useStartLocation } from "@/lib/startLocation";
 import type { Activity, Cost, Place, Preferences } from "@/lib/types";
@@ -18,8 +19,8 @@ import type { Activity, Cost, Place, Preferences } from "@/lib/types";
 const placeLabel: Record<Place, string> = { nature: "Priroda", city: "Grad" };
 const costLabel: Record<Cost, string> = { free: "Besplatno", moderate: "Umjereno", expensive: "Skuplje" };
 
-/** Activities offered as the round thumbnails on the featured card. */
-const HERO_PICKS = ["kravice", "vrelo-bosne", "trebevic-hiking"];
+/** How long the hero waits for the weather before picking as on a dry day. */
+const WEATHER_WAIT_MS = 2500;
 /** Cards shown before "Prikaži sve". */
 const FIRST_CARDS = 8;
 const SHUFFLE_MS = 900;
@@ -191,11 +192,21 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
   const [showAll, setShowAll] = useState(false);
   const visible = showAll ? results : results.slice(0, FIRST_CARDS);
 
-  // The activity in the big card at the top, and why it is there.
-  const [featuredId, setFeaturedId] = useState(HERO_PICKS[0]);
+  // The hero offers this week's picks, or indoor ones when it rains. It waits for the week (known
+  // only in the browser) and briefly for the weather, so it does not swap picks right after loading.
+  const week = useWeekKey();
+  const [rainy, setRainy] = useState<boolean | null>(null);
+  useEffect(() => {
+    const giveUp = setTimeout(() => setRainy((r) => r ?? false), WEATHER_WAIT_MS);
+    return () => clearTimeout(giveUp);
+  }, []);
+  const picks = week && rainy !== null ? heroPicks(activities, week, rainy) : null;
+
+  // The activity in the big card at the top (the first pick until one is chosen), and why it is there.
+  const [featuredId, setFeaturedId] = useState<string | null>(null);
   const [suggested, setSuggested] = useState(false);
-  const featured = activities.find((a) => a.id === featuredId) ?? activities[0];
-  const thumbs = HERO_PICKS.includes(featured.id) ? HERO_PICKS : [featured.id, ...HERO_PICKS.slice(0, 2)];
+  const featured = activities.find((a) => a.id === (featuredId ?? picks?.[0]));
+  const thumbs = !picks || !featured ? [] : picks.includes(featured.id) ? picks : [featured.id, ...picks.slice(0, HERO_SIZE - 1)];
   // While true, "Predloži" is flicking through the results before it settles on one.
   const [shuffling, setShuffling] = useState(false);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -241,7 +252,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
   /** "Predloži": flick through random results for a moment, then settle on one in the big card. */
   function suggest() {
     if (shuffling || results.length === 0) return;
-    const pool = results.length > 1 ? results.filter((a) => a.id !== featuredId) : results;
+    const pool = results.length > 1 ? results.filter((a) => a.id !== featured?.id) : results;
     const pick = () => pool[Math.floor(Math.random() * pool.length)].id;
     document.getElementById("istaknuto")?.scrollIntoView({ block: "center" });
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -271,8 +282,17 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
   const activeFilters = filterCount(prefs, !!start);
   const anythingSet = activeFilters > 0 || !!city || !!folded;
-  const featuredKm = kmFromStart(featured);
-  const inResults = results.some((a) => a.id === featured.id);
+  const featuredKm = featured && kmFromStart(featured);
+  const inResults = !!featured && results.some((a) => a.id === featured.id);
+  const eyebrow = shuffling
+    ? "Biramo…"
+    : suggested
+      ? "Naš prijedlog"
+      : featured && picks?.includes(featured.id)
+        ? rainy
+          ? "Za kišni dan"
+          : "Izlet sedmice"
+        : "Izdvojeno";
 
   return (
     <div className="space-y-6">
@@ -322,55 +342,65 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
         <div id="istaknuto" className="drop-shadow-[0_14px_24px_rgba(40,52,80,.16)]">
           <div className="blob bg-rim p-3">
             <article className="blob relative flex min-h-[470px] flex-col bg-[#3a6ea8] text-white sm:min-h-[520px]" aria-live="polite">
-              <Photo key={featured.id} a={featured} eager sizes="(min-width: 1024px) 50rem, 100vw" className={shuffling ? "" : "hero-photo"} />
-              <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(14,34,66,.75)_0%,rgba(14,34,66,.38)_45%,rgba(14,34,66,0)_72%)]" />
-              <div className={`relative max-w-[460px] px-[30px] pt-[46px] transition sm:px-14 sm:pt-[70px] ${shuffling ? "blur-[2px]" : ""}`}>
-                <p className="text-xs font-medium tracking-[0.22em] uppercase opacity-90">
-                  {shuffling ? "Biramo…" : suggested ? "Naš prijedlog" : "Izlet sedmice"}
-                </p>
-                <h2 className="mt-3.5 font-serif text-[clamp(40px,5.2vw,64px)] leading-none">{featured.title}</h2>
-                <p className="mt-1.5 font-serif text-[22px] sm:text-[26px]">{featured.location}</p>
-                <p className="mt-4 line-clamp-3 max-w-[34ch] opacity-95">{featured.description}</p>
-                <p className="mt-3 text-sm opacity-90">
-                  {featuredKm !== undefined && `${formatKm(featuredKm)} od vas · `}
-                  {featured.indoor ? "Unutra" : "Vani"} · {costLabel[featured.cost]}
-                  {featured.coffee && " · ☕ Kafa"}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Filtered out of the cards: show where it is on the map instead.
-                    if (!showCard(featured.id)) document.getElementById("mapa")?.scrollIntoView({ block: "start" });
-                  }}
-                  className="mt-6 inline-flex items-center gap-3 rounded-full border-2 border-white/85 bg-[rgba(20,48,90,.55)] px-[26px] py-3 font-medium backdrop-blur-sm transition hover:bg-[rgba(20,48,90,.75)]"
-                >
-                  {inResults ? "Pogledaj izlet" : "Pogledaj na mapi"}
-                  <LongArrow />
-                </button>
-              </div>
-              {/* In the flow under the text (not pinned to the corner), so a long description never runs into them */}
-              <div
-                role="group"
-                aria-label="Izaberi istaknuti izlet"
-                className="relative mt-auto flex items-center gap-2.5 px-[26px] pt-6 pb-[26px] sm:px-11 sm:pb-[34px]"
-              >
-                {thumbs.map((id) => {
-                  const a = activities.find((x) => x.id === id)!;
-                  const pressed = id === featured.id;
-                  return (
+              {!featured ? (
+                // Same shape while the week's picks are being chosen
+                <div className="max-w-[460px] animate-pulse space-y-4 px-[30px] pt-[46px] sm:px-14 sm:pt-[70px]" aria-hidden>
+                  <div className="h-3 w-28 rounded bg-white/30" />
+                  <div className="h-14 w-72 max-w-full rounded-lg bg-white/25" />
+                  <div className="h-6 w-48 rounded bg-white/20" />
+                  <div className="h-16 w-80 max-w-full rounded bg-white/15" />
+                </div>
+              ) : (
+                <>
+                  <Photo key={featured.id} a={featured} eager sizes="(min-width: 1024px) 50rem, 100vw" className={shuffling ? "" : "hero-photo"} />
+                  <div className="absolute inset-0 bg-[linear-gradient(100deg,rgba(14,34,66,.75)_0%,rgba(14,34,66,.38)_45%,rgba(14,34,66,0)_72%)]" />
+                  <div className={`relative max-w-[460px] px-[30px] pt-[46px] transition sm:px-14 sm:pt-[70px] ${shuffling ? "blur-[2px]" : ""}`}>
+                    <p className="text-xs font-medium tracking-[0.22em] uppercase opacity-90">{eyebrow}</p>
+                    <h2 className="mt-3.5 font-serif text-[clamp(40px,5.2vw,64px)] leading-none">{featured.title}</h2>
+                    <p className="mt-1.5 font-serif text-[22px] sm:text-[26px]">{featured.location}</p>
+                    <p className="mt-4 line-clamp-3 max-w-[34ch] opacity-95">{featured.description}</p>
+                    <p className="mt-3 text-sm opacity-90">
+                      {featuredKm !== undefined && `${formatKm(featuredKm)} od vas · `}
+                      {featured.indoor ? "Unutra" : "Vani"} · {costLabel[featured.cost]}
+                      {featured.coffee && " · ☕ Kafa"}
+                    </p>
                     <button
-                      key={id}
                       type="button"
-                      aria-label={a.title}
-                      aria-pressed={pressed}
-                      onClick={() => feature(id)}
-                      className={`relative overflow-hidden rounded-full shadow-[0_4px_10px_rgba(0,0,0,.25)] transition hover:-translate-y-0.5 ${pressed ? "size-[72px] border-4 border-white" : "size-[58px] border-[3px] border-white/75"}`}
+                      onClick={() => {
+                        // Filtered out of the cards: show where it is on the map instead.
+                        if (!showCard(featured.id)) document.getElementById("mapa")?.scrollIntoView({ block: "start" });
+                      }}
+                      className="mt-6 inline-flex items-center gap-3 rounded-full border-2 border-white/85 bg-[rgba(20,48,90,.55)] px-[26px] py-3 font-medium backdrop-blur-sm transition hover:bg-[rgba(20,48,90,.75)]"
                     >
-                      <Photo a={a} sizes="72px" />
+                      {inResults ? "Pogledaj izlet" : "Pogledaj na mapi"}
+                      <LongArrow />
                     </button>
-                  );
-                })}
-              </div>
+                  </div>
+                  {/* In the flow under the text (not pinned to the corner), so a long description never runs into them */}
+                  <div
+                    role="group"
+                    aria-label="Izaberi istaknuti izlet"
+                    className="relative mt-auto flex items-center gap-2.5 px-[26px] pt-6 pb-[26px] sm:px-11 sm:pb-[34px]"
+                  >
+                    {thumbs.map((id) => {
+                      const a = activities.find((x) => x.id === id)!;
+                      const pressed = id === featured.id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          aria-label={a.title}
+                          aria-pressed={pressed}
+                          onClick={() => feature(id)}
+                          className={`relative overflow-hidden rounded-full shadow-[0_4px_10px_rgba(0,0,0,.25)] transition hover:-translate-y-0.5 ${pressed ? "size-[72px] border-4 border-white" : "size-[58px] border-[3px] border-white/75"}`}
+                        >
+                          <Photo a={a} sizes="72px" />
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </article>
           </div>
         </div>
@@ -388,7 +418,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
               </g>
             </svg>
           </p>
-          <WeatherWidget />
+          <WeatherWidget onWeather={(code) => setRainy(code !== null && isRainy(code))} />
           <div className={`${card} p-5`}>
             <h3 className="mb-3.5 font-serif text-[21px]">Polazište</h3>
             <StartLocationPicker location={start} />
@@ -517,12 +547,12 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
           </figure>
           <div className={`${card} flex flex-wrap items-center gap-4 px-4 py-3.5 sm:flex-nowrap`}>
             <div className="relative h-16 w-[76px] shrink-0 overflow-hidden rounded-2xl">
-              <Photo a={suggested ? featured : activities.find((a) => a.id === "stari-most")!} sizes="76px" />
+              <Photo a={(suggested && featured) || activities.find((a) => a.id === "stari-most")!} sizes="76px" />
             </div>
             <p className="min-w-0 flex-1">
               <strong className="block font-medium">Ne znate kuda?</strong>
               <span className="text-[13px] text-muted">
-                {suggested && !shuffling ? `Kako bi bilo: ${featured.title}?` : "Pustite nas da predložimo izlet."}
+                {suggested && !shuffling && featured ? `Kako bi bilo: ${featured.title}?` : "Pustite nas da predložimo izlet."}
               </span>
             </p>
             <button
@@ -583,7 +613,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
               <MapTeaser
                 dots={results.map((a) => a.coordinates)}
                 from={start ? { label: start.name, coordinates: start.coordinates } : undefined}
-                to={{ label: featured.title, coordinates: featured.coordinates }}
+                to={featured && { label: featured.title, coordinates: featured.coordinates }}
               />
             </div>
           </div>
