@@ -488,7 +488,7 @@ export default function Recommender({
             className="flex items-center justify-center gap-1.5 pt-1.5 pl-3 font-script text-[54px] leading-[.9] text-accent sm:col-span-2 lg:col-span-1 lg:-rotate-[8deg] lg:justify-start"
             aria-hidden
           >
-            Hajmo van!
+            Hajmo vani!
             <svg width="40" height="40" viewBox="0 0 40 40" className="shrink-0">
               <circle cx={20} cy={20} r={7} className="fill-sun" />
               <g className="stroke-sun" strokeWidth={2.5} strokeLinecap="round">
