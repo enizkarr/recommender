@@ -11,6 +11,7 @@ import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
 import StartLocationPicker from "@/components/StartLocationPicker";
 import WeatherWidget, { isRainy } from "@/components/WeatherWidget";
+import WeekendPlanner from "@/components/WeekendPlanner";
 import { activities } from "@/data/activities";
 import { cities } from "@/data/cities";
 import { ACTIVITY_PARAM, noFilters, pageQuery } from "@/lib/filtersUrl";
@@ -518,6 +519,8 @@ export default function Recommender({
           </div>
         </aside>
       </section>
+
+      <WeekendPlanner start={start} results={results} tripFor={tripFor} onOpen={openDetail} />
 
       <section id="aktivnosti" aria-labelledby="aktivnosti-naslov" className={`${card} scroll-mt-6 px-4 pt-[26px] pb-6 sm:px-6`}>
         <div className="flex flex-wrap items-end justify-between gap-4 px-2">

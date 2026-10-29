@@ -5,7 +5,7 @@ import { cities } from "@/data/cities";
 import { useStartLocation } from "@/lib/startLocation";
 
 // Spread across the country; without a starting point their combined weather is shown, as a picture of the whole of BiH.
-const WEATHER_CITIES = ["Sarajevo", "Banja Luka", "Mostar", "Tuzla", "Bihać"];
+export const WEATHER_CITIES = ["Sarajevo", "Banja Luka", "Mostar", "Tuzla", "Bihać"];
 const REFRESH_MS = 15 * 60 * 1000;
 
 interface CityWeather {
@@ -27,10 +27,10 @@ interface Weather {
   note: string;
 }
 
-type Sky = "clear" | "partly" | "overcast" | "fog" | "rain" | "snow" | "storm";
+export type Sky = "clear" | "partly" | "overcast" | "fog" | "rain" | "snow" | "storm";
 
 /** WMO weather code (as used by Open-Meteo) to a Bosnian label and a sky type. */
-function describe(code: number): { label: string; sky: Sky } {
+export function describe(code: number): { label: string; sky: Sky } {
   if (code === 0) return { label: "Vedro", sky: "clear" };
   if (code === 1) return { label: "Pretežno vedro", sky: "clear" };
   if (code === 2) return { label: "Djelimično oblačno", sky: "partly" };
@@ -56,7 +56,7 @@ function Svg({ children, className = "size-5" }: { children: ReactNode; classNam
 
 const cloud = <path d="M7 18h10a4 4 0 0 0 .5-7.97A5.5 5.5 0 0 0 7 9.5 4.25 4.25 0 0 0 7 18Z" />;
 
-function SkyIcon({ sky, isDay, className }: { sky: Sky; isDay: boolean; className?: string }) {
+export function SkyIcon({ sky, isDay, className }: { sky: Sky; isDay: boolean; className?: string }) {
   if (sky === "clear")
     return isDay ? (
       <Svg className={className}>
