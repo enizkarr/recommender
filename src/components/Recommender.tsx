@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import BosniaMap from "@/components/BosniaMap";
+import DirectionsLink from "@/components/DirectionsLink";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
 import MapTeaser from "@/components/MapTeaser";
 import StartLocationPicker from "@/components/StartLocationPicker";
@@ -13,7 +14,7 @@ import { cities } from "@/data/cities";
 import { noFilters, prefsToQuery } from "@/lib/filtersUrl";
 import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
 import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
-import { formatDrive, useDrives } from "@/lib/driving";
+import { directionsUrl, formatDrive, useDrives } from "@/lib/driving";
 import { formatKm, useStartLocation } from "@/lib/startLocation";
 import type { Activity, Cost, Place, Preferences } from "@/lib/types";
 
@@ -76,6 +77,15 @@ function LongArrow() {
   );
 }
 
+/** Navigation arrow, as used by map apps for "directions". */
+function NavIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden>
+      <path d="M3 11 21 3l-8 18-2-8z" />
+    </svg>
+  );
+}
+
 const roundButton = "grid size-[38px] shrink-0 place-items-center rounded-full bg-page text-ink shadow-soft transition hover:-translate-y-0.5";
 const card = "rounded-[30px] bg-surface shadow-card";
 
@@ -120,11 +130,13 @@ interface PlaceCardProps {
   a: Activity;
   active: boolean;
   trip?: Trip;
+  /** Starting point for the directions link; without it Google Maps starts from the device's location. */
+  from?: [number, number];
   onHover: (id: string | null) => void;
   onFeature: (id: string) => void;
 }
 
-function PlaceCard({ a, active, trip, onHover, onFeature }: PlaceCardProps) {
+function PlaceCard({ a, active, trip, from, onHover, onFeature }: PlaceCardProps) {
   return (
     <article
       id={`card-${a.id}`}
@@ -152,6 +164,14 @@ function PlaceCard({ a, active, trip, onHover, onFeature }: PlaceCardProps) {
         <Tag tone={a.cost === "free" ? "free" : "plain"}>{costLabel[a.cost]}</Tag>
         {a.coffee && <Tag>☕ Kafa</Tag>}
       </div>
+      <DirectionsLink
+        href={directionsUrl(a.coordinates, from)}
+        label={`Kako doći: ${a.title} (otvara Google Maps)`}
+        className="mx-2 mt-3 flex items-center justify-center gap-2 rounded-full bg-accent/12 py-2 text-[13px] font-medium text-accent transition hover:bg-accent/20"
+      >
+        <NavIcon />
+        Kako doći
+      </DirectionsLink>
     </article>
   );
 }
@@ -382,17 +402,27 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
                       {featured.indoor ? "Unutra" : "Vani"} · {costLabel[featured.cost]}
                       {featured.coffee && " · ☕ Kafa"}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        // Filtered out of the cards: show where it is on the map instead.
-                        if (!showCard(featured.id)) document.getElementById("mapa")?.scrollIntoView({ block: "start" });
-                      }}
-                      className="mt-6 inline-flex items-center gap-3 rounded-full border-2 border-white/85 bg-[rgba(20,48,90,.55)] px-[26px] py-3 font-medium backdrop-blur-sm transition hover:bg-[rgba(20,48,90,.75)]"
-                    >
-                      {inResults ? "Pogledaj izlet" : "Pogledaj na mapi"}
-                      <LongArrow />
-                    </button>
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Filtered out of the cards: show where it is on the map instead.
+                          if (!showCard(featured.id)) document.getElementById("mapa")?.scrollIntoView({ block: "start" });
+                        }}
+                        className="inline-flex items-center gap-3 rounded-full border-2 border-white/85 bg-[rgba(20,48,90,.55)] px-[26px] py-3 font-medium backdrop-blur-sm transition hover:bg-[rgba(20,48,90,.75)]"
+                      >
+                        {inResults ? "Pogledaj izlet" : "Pogledaj na mapi"}
+                        <LongArrow />
+                      </button>
+                      <DirectionsLink
+                        href={directionsUrl(featured.coordinates, start?.coordinates)}
+                        label={`Kako doći: ${featured.title} (otvara Google Maps)`}
+                        className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 font-medium text-[#14305a] transition hover:bg-white/90"
+                      >
+                        <NavIcon />
+                        Kako doći
+                      </DirectionsLink>
+                    </div>
                   </div>
                   {/* In the flow under the text (not pinned to the corner), so a long description never runs into them */}
                   <div
@@ -523,7 +553,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
         <div className="mt-5 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((a) => (
-            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} onHover={setActiveId} onFeature={feature} />
+            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onFeature={feature} />
           ))}
           {results.length === 0 && <p className="col-span-full py-10 text-center text-muted">{resultsText(0, !!city)}</p>}
         </div>

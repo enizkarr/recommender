@@ -81,8 +81,9 @@ body {
   }
 }
 
-/* Filter modal: a short fade-and-rise when it opens */
-.filter-modal[open] {
+/* Filter modal and route warning: a short fade-and-rise when they open */
+.filter-modal[open],
+.route-warning[open] {
   animation: modal-in 0.18s ease-out;
 }
 

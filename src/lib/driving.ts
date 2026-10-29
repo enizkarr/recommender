@@ -68,6 +68,17 @@ export function useDrives(from: [number, number] | undefined, activities: Activi
   return { drives: current?.drives ?? null, failed: !!current && !current.drives };
 }
 
+/**
+ * Google Maps driving directions to a place. The route starts at the starting point when one is
+ * set; otherwise Google Maps starts from the device's current location. On phones the same link
+ * opens the Google Maps app when it is installed.
+ */
+export function directionsUrl(to: [number, number], from?: [number, number]): string {
+  const params = new URLSearchParams({ api: "1", destination: to.join(","), travelmode: "driving" });
+  if (from) params.set("origin", from.join(","));
+  return `https://www.google.com/maps/dir/?${params}`;
+}
+
 /** "15 min", "1 h 10 min", "2 h": rounded to 5 minutes, since road times are estimates anyway. */
 export function formatDrive(minutes: number): string {
   if (minutes < 5) return "do 5 min";
