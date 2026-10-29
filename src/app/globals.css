@@ -100,6 +100,17 @@ body {
   }
 }
 
+/* First-visit hint pointing at the starting point: the dimmed page and the arrow fade in */
+.hint-fade {
+  animation: hint-fade 0.3s ease-out;
+}
+
+@keyframes hint-fade {
+  from {
+    opacity: 0;
+  }
+}
+
 /* Map landmark icons bob gently inside their badges */
 .landmark-float {
   animation: landmark-float 3.2s ease-in-out infinite;
@@ -116,7 +127,8 @@ body {
     scroll-behavior: auto;
   }
   .landmark-float,
-  .hero-photo {
+  .hero-photo,
+  .hint-fade {
     animation: none;
   }
 }

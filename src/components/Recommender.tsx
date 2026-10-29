@@ -9,6 +9,7 @@ import DirectionsLink from "@/components/DirectionsLink";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
 import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
+import StartHint, { markStartHintSeen, useFirstVisit } from "@/components/StartHint";
 import StartLocationPicker from "@/components/StartLocationPicker";
 import WeatherWidget, { isRainy } from "@/components/WeatherWidget";
 import WeekendPlanner from "@/components/WeekendPlanner";
@@ -202,6 +203,14 @@ export default function Recommender({
   const [cityName, setCityName] = useState<string | null>(null);
   const city = cities.find((c) => c.name === cityName);
   const start = useStartLocation();
+  // First-time visitors get a hint pointing at the starting point, until they pick one or close it.
+  const firstVisit = useFirstVisit();
+  const [hintClosed, setHintClosed] = useState(false);
+  const startCard = useRef<HTMLDivElement>(null);
+  const showStartHint = firstVisit && !hintClosed && !start;
+  useEffect(() => {
+    if (firstVisit && start) markStartHintSeen();
+  }, [firstVisit, start]);
   const { drives, failed: routingFailed } = useDrives(start?.coordinates, activities);
   // Road kilometres once the router has answered. Until then (or if it cannot be reached) the
   // straight-line distance stands in, so sorting and the kilometre limit still work.
@@ -386,7 +395,7 @@ export default function Recommender({
 
       <header className="flex flex-wrap items-center gap-6">
         <div className="min-w-0 flex-[1_1_320px]">
-          <h1 className="text-[clamp(28px,3.4vw,40px)] leading-tight font-semibold tracking-tight">Zdravo, porodico 👋</h1>
+          <h1 className="text-[clamp(28px,3.4vw,40px)] leading-tight font-semibold tracking-tight">Gdje ćemo danas?👋</h1>
           <p className="mt-1.5 text-[17px] text-muted">
             Otkrij zadivljujuća odredišta, stvori nezaboravne uspomene i doživi ljepotu naše zemlje – putovanje po putovanje.
           </p>
@@ -497,7 +506,7 @@ export default function Recommender({
             </svg>
           </p>
           <WeatherWidget onWeather={(code) => setRainy(code !== null && isRainy(code))} />
-          <div className={`${card} p-5`}>
+          <div ref={startCard} className={`${card} p-5`}>
             <h3 className="mb-3.5 font-serif text-[21px]">Polazište</h3>
             <StartLocationPicker location={start} />
             {nearest && (
@@ -519,6 +528,16 @@ export default function Recommender({
           </div>
         </aside>
       </section>
+
+      {showStartHint && (
+        <StartHint
+          target={startCard}
+          onClose={() => {
+            markStartHintSeen();
+            setHintClosed(true);
+          }}
+        />
+      )}
 
       <WeekendPlanner start={start} results={results} tripFor={tripFor} onOpen={openDetail} />
 
