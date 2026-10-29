@@ -1,6 +1,7 @@
 import { Suspense, type ReactNode } from "react";
 import Recommender from "@/components/Recommender";
-import { prefsFromQuery } from "@/lib/filtersUrl";
+import { activities } from "@/data/activities";
+import { activityFromQuery, prefsFromQuery } from "@/lib/filtersUrl";
 
 function RailLink({ href, label, active = false, children }: { href: string; label: string; active?: boolean; children: ReactNode }) {
   return (
@@ -57,10 +58,17 @@ export default function Home({ searchParams }: PageProps<"/">) {
       <Rail />
       <main className="min-w-0">
         <Suspense fallback={<Recommender initialPrefs={null} />}>
-          {/* A shared link like ?mjesto=priroda opens with those filters already applied. */}
-          {searchParams.then((query) => (
-            <Recommender initialPrefs={prefsFromQuery(query)} />
-          ))}
+          {/* A shared link like ?mjesto=priroda opens with those filters already applied,
+              and ?aktivnost=kravice with that activity's details open. */}
+          {searchParams.then((query) => {
+            const id = activityFromQuery(query);
+            return (
+              <Recommender
+                initialPrefs={prefsFromQuery(query)}
+                initialActivityId={activities.some((a) => a.id === id) ? id : null}
+              />
+            );
+          })}
         </Suspense>
       </main>
     </div>

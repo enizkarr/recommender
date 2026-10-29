@@ -3,23 +3,23 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
+import ActivityDetail from "@/components/ActivityDetail";
 import BosniaMap from "@/components/BosniaMap";
 import DirectionsLink from "@/components/DirectionsLink";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
 import MapTeaser from "@/components/MapTeaser";
+import Photo from "@/components/Photo";
 import StartLocationPicker from "@/components/StartLocationPicker";
 import WeatherWidget, { isRainy } from "@/components/WeatherWidget";
 import { activities } from "@/data/activities";
 import { cities } from "@/data/cities";
-import { noFilters, prefsToQuery } from "@/lib/filtersUrl";
+import { ACTIVITY_PARAM, noFilters, pageQuery } from "@/lib/filtersUrl";
 import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
 import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
-import { directionsUrl, formatDrive, useDrives } from "@/lib/driving";
-import { formatKm, useStartLocation } from "@/lib/startLocation";
-import type { Activity, Cost, Place, Preferences } from "@/lib/types";
-
-const placeLabel: Record<Place, string> = { nature: "Priroda", city: "Grad" };
-const costLabel: Record<Cost, string> = { free: "Besplatno", moderate: "Umjereno", expensive: "Skuplje" };
+import { directionsUrl, formatDrive, tripKm, useDrives, type Trip } from "@/lib/driving";
+import { costLabel, placeLabel } from "@/lib/labels";
+import { useStartLocation } from "@/lib/startLocation";
+import type { Activity, Preferences } from "@/lib/types";
 
 /** How long the hero waits for the weather before picking as on a dry day. */
 const WEATHER_WAIT_MS = 2500;
@@ -56,9 +56,10 @@ function fold(text: string): string {
   return text.toLocaleLowerCase("bs").replaceAll("đ", "dj").normalize("NFD").replace(/\p{M}/gu, "");
 }
 
-function writeFiltersToUrl(prefs: Preferences) {
-  const query = prefsToQuery(prefs);
-  window.history.replaceState(null, "", query ? `?${query}` : window.location.pathname);
+/** Address for the page with these filters and, when one is open, an activity's details. */
+function pageUrl(prefs: Preferences, activityId: string | null): string {
+  const query = pageQuery(prefs, activityId);
+  return query ? `?${query}` : window.location.pathname;
 }
 
 function Arrow({ className = "size-4" }: { className?: string }) {
@@ -89,20 +90,6 @@ function NavIcon() {
 const roundButton = "grid size-[38px] shrink-0 place-items-center rounded-full bg-page text-ink shadow-soft transition hover:-translate-y-0.5";
 const card = "rounded-[30px] bg-surface shadow-card";
 
-/** Photo of an activity, or a soft placeholder for the ones without a picture yet. */
-function Photo({ a, sizes, className = "", eager = false }: { a: Activity; sizes: string; className?: string; eager?: boolean }) {
-  return a.image ? (
-    <Image src={a.image} alt={a.title} fill sizes={sizes} loading={eager ? "eager" : undefined} className={`object-cover ${className}`} />
-  ) : (
-    <span
-      className={`absolute inset-0 grid place-items-center bg-[linear-gradient(140deg,color-mix(in_srgb,var(--soft)_45%,var(--surface)),var(--surface))] text-4xl ${className}`}
-      aria-hidden
-    >
-      {a.place === "nature" ? "🌲" : "🏛️"}
-    </span>
-  );
-}
-
 function Tag({ children, tone = "plain" }: { children: ReactNode; tone?: "plain" | "free" | "km" }) {
   const tones = {
     plain: "bg-page text-muted",
@@ -110,20 +97,6 @@ function Tag({ children, tone = "plain" }: { children: ReactNode; tone?: "plain"
     km: "bg-accent/12 font-medium text-accent",
   };
   return <span className={`rounded-full px-2.5 py-0.5 ${tones[tone]}`}>{children}</span>;
-}
-
-/** How far an activity is from the starting point, as shown to the family. */
-interface Trip {
-  km: number;
-  /** Driving time; missing when only the straight-line distance is known. */
-  minutes?: number;
-  /** True when the router could not be reached and `km` is the straight-line distance. */
-  straight?: boolean;
-}
-
-/** "~45 km" by road, or "~38 km zračno" when only the straight-line distance is known. */
-function tripKm(trip: Trip): string {
-  return trip.straight ? `${formatKm(trip.km)} zračno` : formatKm(trip.km);
 }
 
 interface PlaceCardProps {
@@ -134,25 +107,32 @@ interface PlaceCardProps {
   from?: [number, number];
   onHover: (id: string | null) => void;
   onFeature: (id: string) => void;
+  /** Opens the activity's details. */
+  onOpen: (id: string) => void;
 }
 
-function PlaceCard({ a, active, trip, from, onHover, onFeature }: PlaceCardProps) {
+function PlaceCard({ a, active, trip, from, onHover, onFeature, onOpen }: PlaceCardProps) {
   return (
     <article
       id={`card-${a.id}`}
       onMouseEnter={() => onHover(a.id)}
       onMouseLeave={() => onHover(null)}
-      className={`flex flex-col rounded-3xl border bg-surface px-2 pt-2 pb-4 shadow-soft transition ${active ? "border-accent ring-2 ring-accent" : "border-line"}`}
+      className={`relative flex flex-col rounded-3xl border bg-surface px-2 pt-2 pb-4 shadow-soft transition hover:-translate-y-0.5 ${active ? "border-accent ring-2 ring-accent" : "border-line"}`}
     >
       <div className="relative aspect-[4/3] overflow-hidden rounded-[18px]">
         <Photo a={a} sizes="(min-width: 1080px) 18rem, (min-width: 640px) 45vw, 90vw" />
       </div>
       <div className="flex items-center justify-between gap-2 px-2 pt-3.5">
         <div className="min-w-0">
-          <h3 className="font-medium">{a.title}</h3>
+          <h3 className="font-medium">
+            {/* Stretched over the whole card, so a click anywhere opens the details; the buttons sit above it */}
+            <button type="button" onClick={() => onOpen(a.id)} className="text-left after:absolute after:inset-0 after:rounded-3xl after:content-['']">
+              {a.title}
+            </button>
+          </h3>
           <p className="text-[13px] text-muted">{a.location}</p>
         </div>
-        <button type="button" onClick={() => onFeature(a.id)} aria-label={`Istakni: ${a.title}`} className={roundButton}>
+        <button type="button" onClick={() => onFeature(a.id)} aria-label={`Istakni: ${a.title}`} className={`relative z-10 ${roundButton}`}>
           <Arrow />
         </button>
       </div>
@@ -167,7 +147,7 @@ function PlaceCard({ a, active, trip, from, onHover, onFeature }: PlaceCardProps
       <DirectionsLink
         href={directionsUrl(a.coordinates, from)}
         label={`Kako doći: ${a.title} (otvara Google Maps)`}
-        className="mx-2 mt-3 flex items-center justify-center gap-2 rounded-full bg-accent/12 py-2 text-[13px] font-medium text-accent transition hover:bg-accent/20"
+        className="relative z-10 mx-2 mt-3 flex items-center justify-center gap-2 rounded-full bg-accent/12 py-2 text-[13px] font-medium text-accent transition hover:bg-accent/20"
       >
         <NavIcon />
         Kako doći
@@ -205,7 +185,14 @@ function ComingSoonTile({ label, children }: { label: string; children: ReactNod
   );
 }
 
-export default function Recommender({ initialPrefs }: { initialPrefs: Preferences | null }) {
+export default function Recommender({
+  initialPrefs,
+  initialActivityId = null,
+}: {
+  initialPrefs: Preferences | null;
+  /** Activity whose details a shared link (?aktivnost=…) opens. */
+  initialActivityId?: string | null;
+}) {
   // Filters apply straight away; they are also kept in the address bar so the page can be shared.
   const [prefs, setPrefsState] = useState<Preferences>(initialPrefs ?? noFilters);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -266,8 +253,54 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
   function setPrefs(next: Preferences) {
     setPrefsState(next);
-    writeFiltersToUrl(next);
+    window.history.replaceState(null, "", pageUrl(next, openId));
   }
+
+  // The activity whose details are open. Opening adds a history entry (?aktivnost=…), so the
+  // browser's or phone's back button closes the popup and a copied link opens it again.
+  const [openId, setOpenId] = useState<string | null>(initialActivityId);
+  const pushedEntry = useRef(false);
+  const openActivity = activities.find((a) => a.id === openId);
+
+  useEffect(() => {
+    const onBack = () => {
+      const id = new URLSearchParams(window.location.search).get(ACTIVITY_PARAM);
+      pushedEntry.current = false;
+      setOpenId(activities.some((a) => a.id === id) ? id : null);
+    };
+    window.addEventListener("popstate", onBack);
+    return () => window.removeEventListener("popstate", onBack);
+  }, []);
+
+  function openDetail(id: string) {
+    // Switching to another activity inside the popup replaces the entry instead of adding one.
+    if (openId) {
+      window.history.replaceState(null, "", pageUrl(prefs, id));
+    } else {
+      window.history.pushState(null, "", pageUrl(prefs, id));
+      pushedEntry.current = true;
+    }
+    setOpenId(id);
+  }
+
+  function closeDetail() {
+    if (pushedEntry.current) {
+      // Going back removes the entry we added; the popstate listener then closes the popup.
+      window.history.back();
+      return;
+    }
+    // Opened straight from a shared link: there is no entry of ours to go back to.
+    window.history.replaceState(null, "", pageUrl(prefs, null));
+    setOpenId(null);
+  }
+
+  /** Up to three other activities near the one whose details are open, nearest first. */
+  const nearby = openActivity
+    ? activities
+        .filter((a) => a.id !== openActivity.id && isNear(a, openActivity.coordinates))
+        .sort((x, y) => distanceKm(x.coordinates, openActivity.coordinates) - distanceKm(y.coordinates, openActivity.coordinates))
+        .slice(0, 3)
+    : [];
 
   function toggle<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setPrefs({ ...prefs, [key]: prefs[key] === value ? "any" : value });
@@ -331,7 +364,6 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
   const anythingSet = activeFilters > 0 || !!city || !!folded;
   const featuredTrip = featured && tripFor(featured);
   const nearestTrip = nearest ? tripFor(nearest) : undefined;
-  const inResults = !!featured && results.some((a) => a.id === featured.id);
   const eyebrow = shuffling
     ? "Biramo…"
     : suggested
@@ -405,13 +437,10 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
                     <div className="mt-6 flex flex-wrap items-center gap-3">
                       <button
                         type="button"
-                        onClick={() => {
-                          // Filtered out of the cards: show where it is on the map instead.
-                          if (!showCard(featured.id)) document.getElementById("mapa")?.scrollIntoView({ block: "start" });
-                        }}
+                        onClick={() => openDetail(featured.id)}
                         className="inline-flex items-center gap-3 rounded-full border-2 border-white/85 bg-[rgba(20,48,90,.55)] px-[26px] py-3 font-medium backdrop-blur-sm transition hover:bg-[rgba(20,48,90,.75)]"
                       >
-                        {inResults ? "Pogledaj izlet" : "Pogledaj na mapi"}
+                        Detalji
                         <LongArrow />
                       </button>
                       <DirectionsLink
@@ -442,7 +471,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
                           onClick={() => feature(id)}
                           className={`relative overflow-hidden rounded-full shadow-[0_4px_10px_rgba(0,0,0,.25)] transition hover:-translate-y-0.5 ${pressed ? "size-[72px] border-4 border-white" : "size-[58px] border-[3px] border-white/75"}`}
                         >
-                          <Photo a={a} sizes="72px" />
+                          <Photo a={a} sizes="72px" eager />
                         </button>
                       );
                     })}
@@ -553,7 +582,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
         <div className="mt-5 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((a) => (
-            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onFeature={feature} />
+            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onOpen={openDetail} onFeature={feature} />
           ))}
           {results.length === 0 && <p className="col-span-full py-10 text-center text-muted">{resultsText(0, !!city)}</p>}
         </div>
@@ -569,6 +598,17 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
           </div>
         )}
       </section>
+
+      {openActivity && (
+        <ActivityDetail
+          activity={openActivity}
+          trip={tripFor(openActivity)}
+          start={start}
+          nearby={nearby}
+          onSelect={openDetail}
+          onClose={closeDetail}
+        />
+      )}
 
       {filtersOpen && (
         <FilterModal

@@ -49,3 +49,19 @@ export function prefsFromQuery(query: Record<string, string | string[] | undefin
   }
   return found ? (prefs as Preferences) : null;
 }
+
+/** URL parameter of the activity whose details are open, e.g. ?aktivnost=kravice. */
+export const ACTIVITY_PARAM = "aktivnost";
+
+/** Query string for the filters plus the open activity, without the leading "?". */
+export function pageQuery(prefs: Preferences, activityId: string | null): string {
+  const query = new URLSearchParams(prefsToQuery(prefs));
+  if (activityId) query.set(ACTIVITY_PARAM, activityId);
+  return query.toString();
+}
+
+/** The activity id named in the URL parameters, if any (not yet checked against the list). */
+export function activityFromQuery(query: Record<string, string | string[] | undefined>): string | null {
+  const raw = query[ACTIVITY_PARAM];
+  return (Array.isArray(raw) ? raw[0] : raw) ?? null;
+}

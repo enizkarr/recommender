@@ -54,6 +54,11 @@ html {
   scroll-behavior: smooth;
 }
 
+/* The page behind an open popup does not scroll */
+html:has(dialog[open]) {
+  overflow: hidden;
+}
+
 body {
   background: var(--page);
   color: var(--ink);
@@ -81,9 +86,10 @@ body {
   }
 }
 
-/* Filter modal and route warning: a short fade-and-rise when they open */
+/* Filter modal, route warning and activity details: a short fade-and-rise when they open */
 .filter-modal[open],
-.route-warning[open] {
+.route-warning[open],
+.activity-detail[open] {
   animation: modal-in 0.18s ease-out;
 }
 

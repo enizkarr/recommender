@@ -1,10 +1,25 @@
 import { useEffect, useState } from "react";
+import { formatKm } from "./startLocation";
 import type { Activity } from "./types";
 
 /** The drive from the starting point to one activity, by road. */
 export interface Drive {
   minutes: number;
   km: number;
+}
+
+/** How far an activity is from the starting point, as shown to the family. */
+export interface Trip {
+  km: number;
+  /** Driving time; missing when only the straight-line distance is known. */
+  minutes?: number;
+  /** True when the router could not be reached and `km` is the straight-line distance. */
+  straight?: boolean;
+}
+
+/** "~45 km" by road, or "~38 km zračno" when only the straight-line distance is known. */
+export function tripKm(trip: Trip): string {
+  return trip.straight ? `${formatKm(trip.km)} zračno` : formatKm(trip.km);
 }
 
 /** Drives per activity id; activities the router cannot reach by road are left out. */
