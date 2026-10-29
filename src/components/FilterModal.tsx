@@ -233,7 +233,7 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
           />
           {startName ? (
             <Segmented
-              legend={`Udaljenost od polazišta (${startName})`}
+              legend={`Udaljenost cestom od polazišta (${startName})`}
               name="radius"
               options={radiusOptions}
               value={draft.radius}

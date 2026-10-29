@@ -13,6 +13,7 @@ import { cities } from "@/data/cities";
 import { noFilters, prefsToQuery } from "@/lib/filtersUrl";
 import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
 import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
+import { formatDrive, useDrives } from "@/lib/driving";
 import { formatKm, useStartLocation } from "@/lib/startLocation";
 import type { Activity, Cost, Place, Preferences } from "@/lib/types";
 
@@ -101,15 +102,29 @@ function Tag({ children, tone = "plain" }: { children: ReactNode; tone?: "plain"
   return <span className={`rounded-full px-2.5 py-0.5 ${tones[tone]}`}>{children}</span>;
 }
 
+/** How far an activity is from the starting point, as shown to the family. */
+interface Trip {
+  km: number;
+  /** Driving time; missing when only the straight-line distance is known. */
+  minutes?: number;
+  /** True when the router could not be reached and `km` is the straight-line distance. */
+  straight?: boolean;
+}
+
+/** "~45 km" by road, or "~38 km zračno" when only the straight-line distance is known. */
+function tripKm(trip: Trip): string {
+  return trip.straight ? `${formatKm(trip.km)} zračno` : formatKm(trip.km);
+}
+
 interface PlaceCardProps {
   a: Activity;
   active: boolean;
-  fromKm?: number;
+  trip?: Trip;
   onHover: (id: string | null) => void;
   onFeature: (id: string) => void;
 }
 
-function PlaceCard({ a, active, fromKm, onHover, onFeature }: PlaceCardProps) {
+function PlaceCard({ a, active, trip, onHover, onFeature }: PlaceCardProps) {
   return (
     <article
       id={`card-${a.id}`}
@@ -131,7 +146,8 @@ function PlaceCard({ a, active, fromKm, onHover, onFeature }: PlaceCardProps) {
       </div>
       <p className="line-clamp-2 px-2 pt-2 text-[13px] text-muted">{a.description}</p>
       <div className="mt-auto flex flex-wrap gap-1.5 px-2 pt-2.5 text-xs">
-        {fromKm !== undefined && <Tag tone="km">{formatKm(fromKm)}</Tag>}
+        {trip && <Tag tone="km">{tripKm(trip)}</Tag>}
+        {trip?.minutes !== undefined && <Tag tone="km">🚗 {formatDrive(trip.minutes)}</Tag>}
         <Tag>{placeLabel[a.place]}</Tag>
         <Tag tone={a.cost === "free" ? "free" : "plain"}>{costLabel[a.cost]}</Tag>
         {a.coffee && <Tag>☕ Kafa</Tag>}
@@ -178,11 +194,22 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
   const [cityName, setCityName] = useState<string | null>(null);
   const city = cities.find((c) => c.name === cityName);
   const start = useStartLocation();
-  const kmFromStart = (a: Activity) => (start ? distanceKm(start.coordinates, a.coordinates) : undefined);
+  const { drives, failed: routingFailed } = useDrives(start?.coordinates, activities);
+  // Road kilometres once the router has answered. Until then (or if it cannot be reached) the
+  // straight-line distance stands in, so sorting and the kilometre limit still work.
+  const kmFromStart = (a: Activity) => (start ? (drives?.[a.id]?.km ?? distanceKm(start.coordinates, a.coordinates)) : undefined);
+  /** What the cards show; nothing while the road distances are still loading. */
+  const tripFor = (a: Activity): Trip | undefined => {
+    if (!start) return undefined;
+    const drive = drives?.[a.id];
+    if (drive) return drive;
+    if (drives || routingFailed) return { km: distanceKm(start.coordinates, a.coordinates), straight: true };
+    return undefined;
+  };
 
   const folded = fold(query.trim());
   const matching = (p: Preferences) => {
-    const list = recommend(activities, p, start?.coordinates).filter(
+    const list = recommend(activities, p, kmFromStart).filter(
       (a) => (!city || isNear(a, city.coordinates)) && (!folded || fold(`${a.title} ${a.location} ${a.tags.join(" ")}`).includes(folded)),
     );
     // With a starting point, the closest activities come first.
@@ -282,7 +309,8 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
   const activeFilters = filterCount(prefs, !!start);
   const anythingSet = activeFilters > 0 || !!city || !!folded;
-  const featuredKm = featured && kmFromStart(featured);
+  const featuredTrip = featured && tripFor(featured);
+  const nearestTrip = nearest ? tripFor(nearest) : undefined;
   const inResults = !!featured && results.some((a) => a.id === featured.id);
   const eyebrow = shuffling
     ? "Biramo…"
@@ -349,7 +377,8 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
                     <p className="mt-1.5 font-serif text-[22px] sm:text-[26px]">{featured.location}</p>
                     <p className="mt-4 line-clamp-3 max-w-[34ch] opacity-95">{featured.description}</p>
                     <p className="mt-3 text-sm opacity-90">
-                      {featuredKm !== undefined && `${formatKm(featuredKm)} od vas · `}
+                      {featuredTrip && `${tripKm(featuredTrip)} od vas · `}
+                      {featuredTrip?.minutes !== undefined && `🚗 ${formatDrive(featuredTrip.minutes)} · `}
                       {featured.indoor ? "Unutra" : "Vani"} · {costLabel[featured.cost]}
                       {featured.coffee && " · ☕ Kafa"}
                     </p>
@@ -419,7 +448,8 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
                 <p className="min-w-0 flex-1 text-[13px] text-muted">
                   Najbliže
                   <strong className="block truncate text-[15px] font-medium text-ink">{nearest.title}</strong>
-                  {formatKm(kmFromStart(nearest)!)} od vas
+                  {nearestTrip ? `${tripKm(nearestTrip)} od vas` : "Računam udaljenost…"}
+                  {nearestTrip?.minutes !== undefined && ` · 🚗 ${formatDrive(nearestTrip.minutes)}`}
                 </p>
                 <button type="button" onClick={() => feature(nearest.id)} aria-label={`Istakni: ${nearest.title}`} className={roundButton}>
                   <Arrow />
@@ -493,7 +523,7 @@ export default function Recommender({ initialPrefs }: { initialPrefs: Preference
 
         <div className="mt-5 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((a) => (
-            <PlaceCard key={a.id} a={a} active={a.id === activeId} fromKm={kmFromStart(a)} onHover={setActiveId} onFeature={feature} />
+            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} onHover={setActiveId} onFeature={feature} />
           ))}
           {results.length === 0 && <p className="col-span-full py-10 text-center text-muted">{resultsText(0, !!city)}</p>}
         </div>

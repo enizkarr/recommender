@@ -7,10 +7,14 @@ const allowedCosts: Record<Budget, Cost[]> = {
 };
 
 /**
- * Returns activities that fit the preferences, best matches first. The distance limit only applies
- * when a starting point ([latitude, longitude]) is given.
+ * Returns activities that fit the preferences, best matches first. The kilometre limit uses
+ * `kmTo` (the distance from the starting point) and is skipped when no distance is known.
  */
-export function recommend(activities: Activity[], prefs: Preferences, from?: [number, number]): Activity[] {
+export function recommend(activities: Activity[], prefs: Preferences, kmTo?: (a: Activity) => number | undefined): Activity[] {
+  const withinLimit = (a: Activity) => {
+    const km = prefs.radius === "any" ? undefined : kmTo?.(a);
+    return km === undefined || km <= Number(prefs.radius);
+  };
   return activities
     .filter(
       (a) =>
@@ -19,7 +23,7 @@ export function recommend(activities: Activity[], prefs: Preferences, from?: [nu
         (prefs.setting === "any" || a.indoor === (prefs.setting === "indoor")) &&
         (prefs.distance === "any" || a.distance === prefs.distance) &&
         allowedCosts[prefs.budget].includes(a.cost) &&
-        (prefs.radius === "any" || !from || distanceKm(from, a.coordinates) <= Number(prefs.radius)),
+        withinLimit(a),
     )
     .sort((a, b) => b.durationHours - a.durationHours);
 }
