@@ -284,12 +284,7 @@ export const activities: Activity[] = [
     location: "Tuzla",
     coordinates: [44.5395, 18.6801],
     info: "Kupanje je ljeti. Ulaz oko 4,50–9 KM (sezona 2025, neslužbeni izvori), djeca do 4 godine besplatno. Van sezone ulaz je besplatan.",
-    image: "/activities/panonska-jezera.jpg",
-    imageCredit: {
-      author: "clickme",
-      license: "CC BY-SA 3.0",
-      source: "https://commons.wikimedia.org/wiki/File:Pannonian_Lakes,_Tuzla_-_panoramio.jpg",
-    },
+    image: "/activities/panonska-jezera-plaza.png",
   },
   {
     id: "strbacki-buk",
@@ -354,6 +349,7 @@ export const activities: Activity[] = [
     location: "Kanjon Vrbasa, kod Banje Luke",
     coordinates: [44.69, 17.15],
     info: "Ide se s licenciranom rafting agencijom; cijenu i najmanji uzrast djece provjeriti kod agencije. Sezona je od proljeća do jeseni, a ljeti je voda najmirnija.",
+    image: "/activities/vrbas-rafting.png",
   },
   {
     id: "banj-brdo",
@@ -371,6 +367,12 @@ export const activities: Activity[] = [
     location: "Banja Luka",
     coordinates: [44.7436, 17.1636],
     info: "Besplatno. Do vrha se može autom, a odatle su kratke šetnje kroz šumu. Dobro mjesto za piknik.",
+    image: "/activities/banj-brdo.jpg",
+    imageCredit: {
+      author: "Svjetlopis, Vladimir Tadic",
+      license: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:%D0%91%D0%B0%D1%9A_%D0%91%D1%80%D0%B4%D0%BE_%D1%81%D0%BF%D0%BE%D0%BC%D0%B5%D0%BD%D0%B8%D0%BA_4_NKD123.jpg",
+    },
   },
   {
     id: "fortica-mostar",
@@ -388,6 +390,7 @@ export const activities: Activity[] = [
     location: "Fortica, iznad Mostara",
     coordinates: [43.3465, 17.825],
     info: "Pogled je besplatan. Zipline ima dvije dionice (oko 570 m i 430 m) i plaća se posebno – jedna turistička ponuda navodi oko 25 €, a cijenu treba provjeriti na licu mjesta.",
+    image: "/activities/fortica-mostar.png",
   },
   {
     id: "pocitelj",
@@ -405,6 +408,7 @@ export const activities: Activity[] = [
     location: "Počitelj, kod Čapljine",
     coordinates: [43.1352, 17.7317],
     info: "Šetnja gradom je besplatna. Stepenice su strme i kamene – nije za kolica. Lako se spoji s Blagajem i Kravicama u jedan izlet.",
+    image: "/activities/pocitelj.png",
   },
   {
     id: "hutovo-blato",
@@ -422,6 +426,12 @@ export const activities: Activity[] = [
     location: "Karaotok, kod Čapljine",
     coordinates: [43.056, 17.785],
     info: "Ulaz u park je simboličan (prema starijem izvoru oko 1 € po osobi). Vožnju čamcem treba unaprijed dogovoriti s parkom; cijena nije javno objavljena.",
+    image: "/activities/hutovo-blato.jpg",
+    imageCredit: {
+      author: "Brian Eager from Livno, Bosnia and Herzegovina",
+      license: "CC BY 2.0",
+      source: "https://commons.wikimedia.org/wiki/File:Hutovo_blato4.jpg",
+    },
   },
   {
     id: "martin-brod",
@@ -439,6 +449,7 @@ export const activities: Activity[] = [
     location: "Martin Brod, NP Una",
     coordinates: [44.492, 16.145],
     info: "Ulaz se plaća i zavisi od sezone (cjenovnik parka za 2026. je na npuna.com). Ljeti otvoreno oko 9–20 h, zimi kraće.",
+    image: "/activities/martin-brod.png",
     website: "https://npuna.com",
   },
   {
@@ -457,6 +468,7 @@ export const activities: Activity[] = [
     location: "Bihać",
     coordinates: [44.86, 15.885],
     info: "Ide se s licenciranom agencijom iz Bihaća; cijenu i porodičnu dionicu provjeriti kod agencije. Sezona je od aprila do oktobra.",
+    image: "/activities/una-rafting.png",
   },
   {
     id: "ostrozac",
@@ -474,6 +486,12 @@ export const activities: Activity[] = [
     location: "Ostrožac, kod Cazina",
     coordinates: [44.912, 15.943],
     info: "Prema turističkim vodičima ulaz je besplatan ili simboličan. Dio dvorca se obnavlja, pa nisu sve prostorije otvorene.",
+    image: "/activities/ostrozac.jpg",
+    imageCredit: {
+      author: "Flammard",
+      license: "CC BY-SA 3.0",
+      source: "https://commons.wikimedia.org/wiki/File:Utvrda_Ostrozac01_(cropped).JPG",
+    },
   },
   {
     id: "smetovi",
@@ -491,6 +509,7 @@ export const activities: Activity[] = [
     location: "Smetovi, kod Zenice",
     coordinates: [44.242, 17.958],
     info: "Besplatno. Do izletišta se može autom za oko 20 minuta od centra Zenice. Ima planinarski dom i mjesta za roštilj.",
+    image: "/activities/smetovi.png",
   },
   {
     id: "stanisici",
@@ -508,6 +527,12 @@ export const activities: Activity[] = [
     location: "Pavlovića put, kod Bijeljine",
     coordinates: [44.766, 19.286],
     info: "Ulaz i parking su besplatni; restorani u selu se plaćaju. Radno vrijeme provjeriti na etno-selo.com.",
+    image: "/activities/stanisici.jpg",
+    imageCredit: {
+      author: "Bojana Wiki PG",
+      license: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:Etno_selo_Stani%C5%A1i%C4%87i,_Bijeljina_01.JPG",
+    },
     website: "https://etno-selo.com",
   },
   {
@@ -526,6 +551,12 @@ export const activities: Activity[] = [
     location: "Doboj",
     coordinates: [44.7386, 18.0857],
     info: "Prema turističkim vodičima ulaz je besplatan. Na tvrđavi se ljeti održavaju srednjovjekovni festivali.",
+    image: "/activities/doboj-gradina.jpg",
+    imageCredit: {
+      author: "Romain Bréget",
+      license: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:Doboj_-_Fortress_1.JPG",
+    },
   },
   {
     id: "kozara-mrakovica",
@@ -543,6 +574,7 @@ export const activities: Activity[] = [
     location: "Mrakovica, kod Prijedora",
     coordinates: [45.0083, 16.9036],
     info: "Avantura park radi vikendom od maja (radnim danom za najavljene grupe). Najniži nivo je za malu djecu, zipline za 16+. Cijene: info centar Mrakovica, 052 480 680.",
+    image: "/activities/kozara-mrakovica.png",
   },
   {
     id: "trebinje-arslanagica-most",
@@ -560,6 +592,12 @@ export const activities: Activity[] = [
     location: "Trebinje",
     coordinates: [42.724, 18.337],
     info: "Besplatno. Pijaca na trgu radi svako jutro. Ljeti je vruće – najbolje ići ujutro ili predvečer.",
+    image: "/activities/trebinje-arslanagica-most.jpg",
+    imageCredit: {
+      author: "Christopher Hylarides",
+      license: "CC BY-SA 3.0",
+      source: "https://commons.wikimedia.org/wiki/File:Arslanagic_bridge.jpg",
+    },
   },
   {
     id: "hercegovacka-gracanica",
@@ -576,6 +614,12 @@ export const activities: Activity[] = [
     location: "Crkvina, Trebinje",
     coordinates: [42.7186, 18.3364],
     info: "Besplatno. Do vrha se može autom. U crkvu se ulazi pristojno obučen.",
+    image: "/activities/hercegovacka-gracanica.jpg",
+    imageCredit: {
+      author: "Cikajoca",
+      license: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:Crkva_Presvete_Bogorodice.jpg",
+    },
   },
   {
     id: "travnik-plava-voda",
@@ -593,6 +637,7 @@ export const activities: Activity[] = [
     location: "Travnik",
     coordinates: [44.2282, 17.67],
     info: "Tvrđavom upravlja Zavičajni muzej Travnik; ulaz se plaća, a cijenu provjeriti na licu mjesta. Plava voda je besplatna.",
+    image: "/activities/travnik-plava-voda.png",
   },
   {
     id: "vlasic",
@@ -628,6 +673,12 @@ export const activities: Activity[] = [
     location: "Jablanica",
     coordinates: [43.656, 17.76],
     info: "Prema vodičima otvoreno svaki dan 9–16 h. Ulaz se plaća; cijena nije objavljena (tel. +387 61 175 317). Na putu ka Mostaru – stati na jagnjetinu.",
+    image: "/activities/jablanica-muzej.jpg",
+    imageCredit: {
+      author: "Вики корисник (Serbian Wikipedia)",
+      license: "CC BY 3.0 rs",
+      source: "https://commons.wikimedia.org/wiki/File:Sruseni_most_u_Jablanici2.JPG",
+    },
   },
   {
     id: "neretva-rafting",
@@ -645,6 +696,7 @@ export const activities: Activity[] = [
     location: "Konjic",
     coordinates: [43.654, 17.958],
     info: "Cijene od oko 41–50 € po osobi, s doručkom, ručkom i opremom. Neki kampovi primaju djecu od 5, neki od 8 godina – provjeriti pri rezervaciji.",
+    image: "/activities/neretva-rafting.png",
   },
   {
     id: "titov-bunker",
@@ -662,6 +714,12 @@ export const activities: Activity[] = [
     location: "Konjic",
     coordinates: [43.667, 17.996],
     info: "Obilazak samo uz vodiča i najavu; cijenu provjeriti pri rezervaciji. Unutra je hladno cijele godine – ponijeti jaknu.",
+    image: "/activities/titov-bunker.jpg",
+    imageCredit: {
+      author: "MorenaClara",
+      license: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:BunkerTito-Entrada.jpg",
+    },
   },
   {
     id: "boracko-jezero",
@@ -696,6 +754,12 @@ export const activities: Activity[] = [
     location: "Višegrad",
     coordinates: [43.782, 19.288],
     info: "Šetnja mostom i Andrićgradom je besplatna. Ljeti voze brodići po Drini.",
+    image: "/activities/visegrad.jpg",
+    imageCredit: {
+      author: "Branevgd",
+      license: "CC BY-SA 3.0",
+      source: "https://commons.wikimedia.org/wiki/File:Mehmet_pasa_bridge_and_green_Drina_river.jpg",
+    },
   },
   {
     id: "sutjeska",
@@ -713,6 +777,7 @@ export const activities: Activity[] = [
     location: "Tjentište, kod Foče",
     coordinates: [43.344, 18.688],
     info: "Ulaz u park se plaća; cijenu provjeriti na npsutjeska.net. U samu prašumu Perućicu se ide samo s vodičem.",
+    image: "/activities/sutjeska-spomenik.png",
     website: "https://npsutjeska.net",
   },
   {
@@ -731,6 +796,12 @@ export const activities: Activity[] = [
     location: "Visoko",
     coordinates: [43.993, 18.182],
     info: "Oko 30 km od Sarajeva. Park i tuneli se plaćaju posebno; cijene provjeriti na licu mjesta.",
+    image: "/activities/ravne-visoko.jpg",
+    imageCredit: {
+      author: "Mhare",
+      license: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:ParkRavne1.jpg",
+    },
   },
   {
     id: "prokosko-jezero",
@@ -748,6 +819,12 @@ export const activities: Activity[] = [
     location: "Vranica, kod Fojnice",
     coordinates: [43.985, 17.95],
     info: "Besplatno. Put od Fojnice je dijelom makadamski – potreban je auto s višim podvozjem. Najbolje od juna do oktobra.",
+    image: "/activities/prokosko-jezero.jpg",
+    imageCredit: {
+      author: "Esso pokva",
+      license: "CC BY-SA 4.0",
+      source: "https://commons.wikimedia.org/wiki/File:Zasticeno_jezero_PROKOSKO_se_nalazi_u_sredisnjem_dijelu_BiH.jpg",
+    },
   },
   {
     id: "livno-konji",
@@ -765,6 +842,7 @@ export const activities: Activity[] = [
     location: "Cincar, kod Livna",
     coordinates: [43.91, 16.97],
     info: "Besplatno. Konji su divlji – posmatrati ih s udaljenosti i ne hraniti ih. Do visoravni vodi makadamski put.",
+    image: "/activities/livno-konji.png",
   },
   {
     id: "blidinje",
@@ -782,6 +860,7 @@ export const activities: Activity[] = [
     location: "Blidinje, kod Posušja",
     coordinates: [43.618, 17.497],
     info: "Ulaz u park je besplatan. Zimi su ski staze na Risovcu, a ski karte se plaćaju.",
+    image: "/activities/blidinje.png",
   },
   {
     id: "neum",
@@ -799,6 +878,12 @@ export const activities: Activity[] = [
     // Slightly inland of the real town, so the dot stays inside the simplified outline drawn on the map.
     coordinates: [42.93, 17.625],
     info: "Javne plaže su besplatne; ležaljke i suncobrani se plaćaju. Iz Sarajeva oko 3,5 sata vožnje.",
+    image: "/activities/neum.jpg",
+    imageCredit: {
+      author: "Beemwej",
+      license: "CC BY-SA 3.0",
+      source: "https://commons.wikimedia.org/wiki/File:Neum_619.JPG",
+    },
   },
   {
     id: "skakavac",
@@ -816,5 +901,6 @@ export const activities: Activity[] = [
     location: "Nahorevo, Sarajevo",
     coordinates: [43.917, 18.443],
     info: "Besplatno. Od parkinga je do vodopada oko 1 km pješke (oko sat hoda). Parking je mali – doći ranije vikendom.",
+    image: "/activities/skakavac.png",
   },
 ];
