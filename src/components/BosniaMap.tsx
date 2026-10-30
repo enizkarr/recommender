@@ -5,6 +5,7 @@ import { bosniaBorder } from "@/data/bosniaBorder";
 import { bosniaRoads } from "@/data/bosniaRoads";
 import Landmark from "@/components/Landmark";
 import { cities, type City } from "@/data/cities";
+import { useT } from "@/i18n/LangProvider";
 import type { Activity } from "@/lib/types";
 
 const lons = bosniaBorder.map(([lon]) => lon);
@@ -220,10 +221,11 @@ interface DotProps {
 }
 
 function Dot({ activity: a, highlighted, active, x, y, onSelect, onHover }: DotProps) {
+  const t = useT();
   return (
     <button
       type="button"
-      aria-label={highlighted ? `${a.title}, ${a.location}` : `${a.title} (ne odgovara filterima)`}
+      aria-label={highlighted ? `${a.title}, ${a.location}` : t.map.notMatching(a.title)}
       onClick={() => onSelect(a.id)}
       onMouseEnter={() => onHover(a.id)}
       onMouseLeave={() => onHover(null)}
@@ -246,19 +248,21 @@ function Dot({ activity: a, highlighted, active, x, y, onSelect, onHover }: DotP
 
 /** The city and its landmark, shown above a hovered badge. Position as fractions (0–1) of the containing box. */
 function CityTooltip({ city, selected, x, y }: { city: City; selected: boolean; x: number; y: number }) {
+  const t = useT();
   return (
     <span
       className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-surface shadow"
       style={{ left: `${x * 100}%`, top: `${y * 100}%` }}
     >
-      <span className="font-semibold">{city.name}</span> · {city.landmark}
-      <span className="block opacity-70">{selected ? "Klikni za sve aktivnosti" : "Klikni za aktivnosti u blizini"}</span>
+      <span className="font-semibold">{city.name}</span> · {t.map.landmarks[city.landmark] ?? city.landmark}
+      <span className="block opacity-70">{selected ? t.map.cityShowAll : t.map.cityShowNear}</span>
     </span>
   );
 }
 
 /** A soft blue map of Bosnia and Herzegovina with main roads, big cities, a dot for every activity and a movable magnifier. */
 export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover, selectedCity, onSelectCity }: Props) {
+  const t = useT();
   const clipId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
   const [lens, setLens] = useState<Lens>({ x: lensStartX, y: lensStartY });
@@ -336,7 +340,7 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
       {/* The magnifier frame: drag it (or focus it and use the arrow keys) to choose what the box shows. */}
       <button
         type="button"
-        aria-label={`Okvir za uvećani prikaz${cityInLens ? `, kod: ${cityInLens.name}` : ""} – pomjeri ga mišem ili strelicama`}
+        aria-label={t.map.lensLabel(cityInLens?.name)}
         onPointerDown={startDrag}
         onPointerMove={moveDrag}
         onPointerUp={() => (drag.current = null)}
@@ -356,8 +360,8 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
         style={{ width: `${INSET_WIDTH * 100}%` }}
       >
         <p className="mb-1 flex items-baseline justify-between gap-2 text-xs font-semibold tracking-wider text-accent uppercase">
-          <span>{cityInLens ? cityInLens.name : "Uvećani prikaz"}</span>
-          <span className="font-normal tracking-normal text-muted normal-case">pomjeri okvir na mapi</span>
+          <span>{cityInLens ? cityInLens.name : t.map.lens}</span>
+          <span className="font-normal tracking-normal text-muted normal-case">{t.map.lensHelp}</span>
         </p>
         <div className="relative overflow-hidden rounded-md bg-page" style={{ aspectRatio: LENS_W / LENS_H }}>
           <svg

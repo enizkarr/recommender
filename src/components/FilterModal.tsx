@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { Dict } from "@/i18n/dictionaries";
+import { useT } from "@/i18n/LangProvider";
 import { noFilters } from "@/lib/filtersUrl";
 import type { Preferences } from "@/lib/types";
 
@@ -50,32 +52,37 @@ interface Option<T extends string> {
   icon?: ReactNode;
 }
 
-const placeOptions: Option<Preferences["place"]>[] = [
-  { value: "any", label: "Svejedno", icon: anyIcon },
-  { value: "nature", label: "Priroda", icon: natureIcon },
-  { value: "city", label: "Grad", icon: cityIcon },
-];
-const settingOptions: Option<Preferences["setting"]>[] = [
-  { value: "any", label: "Svejedno" },
-  { value: "indoor", label: "Unutra" },
-  { value: "outdoor", label: "Vani" },
-];
-const distanceOptions: Option<Preferences["distance"]>[] = [
-  { value: "any", label: "Svejedno" },
-  { value: "near", label: "Blizu" },
-  { value: "far", label: "Daleko" },
-];
-const radiusOptions: Option<Preferences["radius"]>[] = [
-  { value: "any", label: "Svejedno" },
-  { value: "30", label: "Do 30 km" },
-  { value: "60", label: "Do 60 km" },
-  { value: "120", label: "Do 120 km" },
-];
-const budgetOptions: Option<Preferences["budget"]>[] = [
-  { value: "any", label: "Nebitno" },
-  { value: "free", label: "Džabe" },
-  { value: "moderate", label: "Umjereno" },
-];
+/** The choices for each filter, labelled in the page's language. */
+function optionsFor(t: Dict) {
+  return {
+    place: [
+      { value: "any", label: t.filters.any, icon: anyIcon },
+      { value: "nature", label: t.place.nature, icon: natureIcon },
+      { value: "city", label: t.place.city, icon: cityIcon },
+    ] satisfies Option<Preferences["place"]>[],
+    setting: [
+      { value: "any", label: t.filters.any },
+      { value: "indoor", label: t.indoor },
+      { value: "outdoor", label: t.outdoor },
+    ] satisfies Option<Preferences["setting"]>[],
+    distance: [
+      { value: "any", label: t.filters.any },
+      { value: "near", label: t.filters.near },
+      { value: "far", label: t.filters.far },
+    ] satisfies Option<Preferences["distance"]>[],
+    radius: [
+      { value: "any", label: t.filters.any },
+      { value: "30", label: t.filters.upToKm("30") },
+      { value: "60", label: t.filters.upToKm("60") },
+      { value: "120", label: t.filters.upToKm("120") },
+    ] satisfies Option<Preferences["radius"]>[],
+    budget: [
+      { value: "any", label: t.filters.budgetAny },
+      { value: "free", label: t.filters.budgetFree },
+      { value: "moderate", label: t.cost.moderate },
+    ] satisfies Option<Preferences["budget"]>[],
+  };
+}
 
 /**
  * A row of options on a grey track; the chosen one is a white pill. Real radio inputs underneath
@@ -96,12 +103,13 @@ function Segmented<T extends string>({
   onChange: (value: T) => void;
   large?: boolean;
 }) {
+  const t = useT();
   return (
     <fieldset className="min-w-0">
       {legend ? (
         <legend className="mb-2 text-sm text-muted">{legend}</legend>
       ) : (
-        <legend className="sr-only">Priroda ili grad</legend>
+        <legend className="sr-only">{t.filters.natureOrCity}</legend>
       )}
       <div className="flex rounded-full bg-page p-1">
         {options.map((o) => (
@@ -146,11 +154,6 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
   );
 }
 
-/** "Prikaži 1 rezultat", "Prikaži 3 rezultata", "Prikaži 5 rezultata". */
-function showResultsText(count: number): string {
-  return count % 10 === 1 && count % 100 !== 11 ? `Prikaži ${count} rezultat` : `Prikaži ${count} rezultata`;
-}
-
 interface Props {
   /** The filters to start editing from. */
   initial: Preferences;
@@ -167,6 +170,8 @@ interface Props {
  * kept when "Prikaži … rezultata" is pressed.
  */
 export default function FilterModal({ initial, countFor, onApply, onClose, startName }: Props) {
+  const t = useT();
+  const options = optionsFor(t);
   const dialog = useRef<HTMLDialogElement>(null);
   const [draft, setDraft] = useState(initial);
   const count = countFor(draft);
@@ -199,63 +204,63 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
         <div className="space-y-6 p-6">
           <div className="flex items-center justify-between gap-4">
             <h2 id="filter-title" className="font-serif text-2xl">
-              Filteri
+              {t.filters.title}
             </h2>
             <button
               type="button"
               onClick={() => setDraft(noFilters)}
               className="rounded-full border border-line px-4 py-2 text-sm font-medium transition hover:bg-page"
             >
-              Poništi filtere
+              {t.filters.reset}
             </button>
           </div>
 
           <Segmented
             name="place"
             large
-            options={placeOptions}
+            options={options.place}
             value={draft.place}
             onChange={(place) => setDraft({ ...draft, place })}
           />
           <Segmented
-            legend="Unutra ili vani"
+            legend={t.filters.setting}
             name="setting"
-            options={settingOptions}
+            options={options.setting}
             value={draft.setting}
             onChange={(setting) => setDraft({ ...draft, setting })}
           />
           <Segmented
-            legend="Daljina"
+            legend={t.filters.distance}
             name="distance"
-            options={distanceOptions}
+            options={options.distance}
             value={draft.distance}
             onChange={(distance) => setDraft({ ...draft, distance })}
           />
           {startName ? (
             <Segmented
-              legend={`Udaljenost cestom od polazišta (${startName})`}
+              legend={t.filters.radius(startName)}
               name="radius"
-              options={radiusOptions}
+              options={options.radius}
               value={draft.radius}
               onChange={(radius) => setDraft({ ...draft, radius })}
             />
           ) : (
             <p className="rounded-2xl bg-page px-4 py-3 text-sm text-muted">
-              Postavi polazište (📍 iznad filtera) da biraš aktivnosti po kilometrima.
+              {t.filters.radiusHint}
             </p>
           )}
           <Segmented
-            legend="Budžet"
+            legend={t.filters.budget}
             name="budget"
-            options={budgetOptions}
+            options={options.budget}
             value={draft.budget}
             onChange={(budget) => setDraft({ ...draft, budget })}
           />
 
           <div className="space-y-3">
-            <h3 className="text-sm font-medium">Više opcija</h3>
+            <h3 className="text-sm font-medium">{t.filters.more}</h3>
             <Toggle
-              label="Kafa za roditelje"
+              label={t.filters.coffee}
               checked={draft.coffee === "yes"}
               onChange={(on) => setDraft({ ...draft, coffee: on ? "yes" : "any" })}
             />
@@ -268,13 +273,13 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
             onClick={onClose}
             className="rounded-full border border-line py-3 text-sm font-medium transition hover:bg-page"
           >
-            Odustani
+            {t.filters.cancel}
           </button>
           <button
             type="submit"
             className="rounded-full bg-ink py-3 text-sm font-medium text-surface transition hover:opacity-90 active:scale-[0.98]"
           >
-            {showResultsText(count)}
+            {t.filters.show(count)}
           </button>
         </div>
       </form>

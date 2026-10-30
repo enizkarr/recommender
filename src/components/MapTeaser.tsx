@@ -1,4 +1,5 @@
 import { bosniaBorder } from "@/data/bosniaBorder";
+import { useT } from "@/i18n/LangProvider";
 
 // A simple flat projection that fits the country into a 393 × 385 box; enough for a small teaser.
 const project = (lat: number, lon: number): [number, number] => [(lon - 15.72) * 100.8, (45.28 - lat) * 141.4];
@@ -16,10 +17,11 @@ interface Pin {
  * starting point and the featured activity joined by a dotted line.
  */
 export default function MapTeaser({ dots, from, to }: { dots: [number, number][]; from?: Pin; to?: Pin }) {
+  const t = useT();
   const pins = [from, to].filter((p): p is Pin => !!p).map((p) => ({ ...p, at: project(...p.coordinates) }));
   const [a, b] = pins.length === 2 ? pins.map((p) => p.at) : [];
   return (
-    <svg viewBox="-10 -10 420 410" className="h-auto w-full" role="img" aria-label="Mapa Bosne i Hercegovine s aktivnostima">
+    <svg viewBox="-10 -10 420 410" className="h-auto w-full" role="img" aria-label={t.map.teaser}>
       <path d={outline} className="fill-[color-mix(in_srgb,var(--soft)_55%,var(--surface))] stroke-rim" strokeWidth={4} strokeLinejoin="round" />
       {dots.map(([lat, lon], i) => {
         const [x, y] = project(lat, lon);

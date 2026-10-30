@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useT } from "@/i18n/LangProvider";
 
 // Remembered in the browser once someone ticks "Ne prikazuj više".
 const STORAGE_KEY = "family-time:route-warning-off";
@@ -23,6 +24,7 @@ function turnWarningOff() {
 
 /** Reminder that the suggested route is only a guide, shown before Google Maps opens. */
 function RouteWarning({ href, onClose }: { href: string; onClose: () => void }) {
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const [dontShow, setDontShow] = useState(false);
 
@@ -49,28 +51,27 @@ function RouteWarning({ href, onClose }: { href: string; onClose: () => void }) 
             ⚠️
           </span>
           <h2 id="route-warning-title" className="font-serif text-2xl">
-            Prije nego krenete
+            {t.route.title}
           </h2>
         </div>
         <p className="text-sm text-muted">
-          Ruta je samo okvirna. Navigacija ne zna uvijek za radove na cesti, zatvorene ili makadamske puteve i zimske uslove,
-          posebno u planinama.
+          {t.route.text}
         </p>
         <p className="text-sm text-muted">
-          Pratite saobraćajne znakove, prije puta provjerite stanje na cestama (npr. na{" "}
+          {t.route.checkBefore}
           <a href="https://www.bihamk.ba" target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline-offset-2 hover:underline">
             bihamk.ba
           </a>
-          ) i ne oslanjajte se samo na navigaciju.
+          {t.route.checkAfter}
         </p>
         <label className="flex cursor-pointer items-center gap-2.5 text-sm">
           <input type="checkbox" checked={dontShow} onChange={(e) => setDontShow(e.target.checked)} className="size-4 accent-[var(--accent)]" />
-          Ne prikazuj više
+          {t.route.dontShow}
         </label>
       </div>
       <div className="grid grid-cols-2 gap-3 border-t border-line p-4">
         <button type="button" onClick={onClose} className="rounded-full border border-line py-3 text-sm font-medium transition hover:bg-page">
-          Odustani
+          {t.route.cancel}
         </button>
         <a
           href={href}
@@ -82,7 +83,7 @@ function RouteWarning({ href, onClose }: { href: string; onClose: () => void }) 
           }}
           className="rounded-full bg-ink py-3 text-center text-sm font-medium text-surface transition hover:opacity-90"
         >
-          Otvori Google Maps
+          {t.route.open}
         </a>
       </div>
     </dialog>

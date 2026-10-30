@@ -5,8 +5,8 @@ import DirectionsLink from "@/components/DirectionsLink";
 import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
 import { directionsUrl, formatDrive, tripKm, type Trip } from "@/lib/driving";
+import { useT } from "@/i18n/LangProvider";
 import { ACTIVITY_PARAM } from "@/lib/filtersUrl";
-import { costLabel, placeLabel } from "@/lib/labels";
 import type { StartLocation } from "@/lib/startLocation";
 import type { Activity } from "@/lib/types";
 
@@ -51,6 +51,7 @@ interface Props {
  * on bigger screens. Mount it to open it and unmount it to close it.
  */
 export default function ActivityDetail({ activity: a, trip, start, nearby, onSelect, onClose }: Props) {
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const [shareNote, setShareNote] = useState<string | null>(null);
 
@@ -90,7 +91,7 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
       copied = document.execCommand("copy");
       field.remove();
     }
-    setShareNote(copied ? "Link kopiran" : "Link nije kopiran");
+    setShareNote(copied ? t.detail.copied : t.detail.notCopied);
     setTimeout(() => setShareNote(null), 2500);
   }
 
@@ -111,7 +112,7 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
         <button
           type="button"
           onClick={onClose}
-          aria-label="Zatvori"
+          aria-label={t.detail.close}
           className="grid size-10 place-items-center rounded-full bg-white/90 text-xl text-[#14305a] shadow-soft backdrop-blur transition hover:bg-white"
         >
           ✕
@@ -132,23 +133,23 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
           <p className="mt-1 text-muted">📍 {a.location}</p>
           <p className="mt-3 text-sm font-medium text-accent">
             {trip
-              ? `${tripKm(trip)} od mjesta ${start?.name}${trip.minutes !== undefined ? ` · 🚗 ${formatDrive(trip.minutes)} vožnje` : ""}`
+              ? t.detail.trip(tripKm(trip, t), start?.name ?? "", trip.minutes !== undefined ? formatDrive(trip.minutes, t) : null)
               : start
-                ? "Računam udaljenost…"
-                : "Postavi polazište da vidiš udaljenost i vrijeme vožnje."}
+                ? t.calculating
+                : t.detail.setStart}
           </p>
         </header>
 
         <div className="flex flex-wrap items-center gap-2.5">
           <DirectionsLink
             href={directionsUrl(a.coordinates, start?.coordinates)}
-            label={`Kako doći: ${a.title} (otvara Google Maps)`}
+            label={t.directionsLabel(a.title)}
             className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-surface transition hover:opacity-90"
           >
             <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden>
               <path d="M3 11 21 3l-8 18-2-8z" />
             </svg>
-            Kako doći
+            {t.directions}
           </DirectionsLink>
           <ActionButton onClick={share}>
             <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
@@ -157,11 +158,11 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
               <circle cx={18} cy={19} r={2.5} />
               <path d="m8.2 10.9 7.6-4.3M8.2 13.1l7.6 4.3" />
             </svg>
-            Podijeli
+            {t.detail.share}
           </ActionButton>
           {a.website && (
             <a href={a.website} target="_blank" rel="noopener noreferrer" className={pill}>
-              Web stranica ↗
+              {t.detail.website}
             </a>
           )}
           <span className="text-sm text-muted" aria-live="polite">
@@ -173,18 +174,19 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
 
         <section aria-labelledby="info-title" className="rounded-3xl border border-line p-5">
           <h3 id="info-title" className="font-serif text-xl">
-            Praktične informacije
+            {t.detail.info}
           </h3>
           <p className="mt-2 leading-relaxed text-muted">{a.info}</p>
+          {t.detail.priceNote && <p className="mt-3 text-sm text-muted">💱 {t.detail.priceNote}</p>}
         </section>
 
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          <Fact icon="👶" label="Uzrast" value={a.minAge === 0 ? "Za sve uzraste" : `Od ${a.minAge} godina`} />
-          <Fact icon="⏱️" label="Trajanje" value={`Oko ${a.durationHours} h`} />
-          <Fact icon="💰" label="Cijena" value={costLabel[a.cost]} />
-          <Fact icon={a.indoor ? "🏠" : "🌤️"} label="Gdje" value={a.indoor ? "Unutra" : "Vani"} />
-          <Fact icon={a.place === "nature" ? "🌲" : "🏛️"} label="Okruženje" value={placeLabel[a.place]} />
-          {a.coffee && <Fact icon="☕" label="Za roditelje" value="Ima kafa" />}
+          <Fact icon="👶" label={t.detail.age} value={a.minAge === 0 ? t.detail.allAges : t.detail.fromAge(a.minAge)} />
+          <Fact icon="⏱️" label={t.detail.duration} value={t.detail.hours(a.durationHours)} />
+          <Fact icon="💰" label={t.detail.price} value={t.cost[a.cost]} />
+          <Fact icon={a.indoor ? "🏠" : "🌤️"} label={t.detail.where} value={a.indoor ? t.indoor : t.outdoor} />
+          <Fact icon={a.place === "nature" ? "🌲" : "🏛️"} label={t.detail.surroundings} value={t.place[a.place]} />
+          {a.coffee && <Fact icon="☕" label={t.detail.forParents} value={t.detail.hasCoffee} />}
         </div>
 
         <div className="overflow-hidden rounded-3xl bg-[linear-gradient(140deg,color-mix(in_srgb,var(--soft)_22%,var(--surface)),var(--surface)_70%)] px-6 pt-4 pb-2">
@@ -200,7 +202,7 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
         {nearby.length > 0 && (
           <section aria-labelledby="nearby-title">
             <h3 id="nearby-title" className="font-serif text-xl">
-              U blizini
+              {t.detail.nearby}
             </h3>
             <ul className="mt-3 grid gap-2.5 sm:grid-cols-3">
               {nearby.map((n) => (

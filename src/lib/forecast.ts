@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { describe, WEATHER_CITIES } from "@/components/WeatherWidget";
 import { cities } from "@/data/cities";
+import type { Dict } from "@/i18n/dictionaries";
 
 /** The forecast for one day. */
 export interface DayForecast {
@@ -14,8 +15,8 @@ export interface DayForecast {
 }
 
 export interface WeekendForecast {
-  /** Where the forecast is for: the starting point, or Bosnia and Herzegovina as a whole. */
-  place: string;
+  /** Where the forecast is for: the starting point, or null for Bosnia and Herzegovina as a whole. */
+  place: string | null;
   /** The coming Saturday and Sunday; only Sunday when today is Sunday. */
   days: DayForecast[];
 }
@@ -63,8 +64,8 @@ async function fetchDaily(points: [number, number][]): Promise<DailyResponse[]> 
 /** The condition shared by the most places; ties go to the first place in the list. */
 function mostCommonCode(codes: number[]): number {
   const counts = new Map<string, number>();
-  for (const c of codes) counts.set(describe(c).label, (counts.get(describe(c).label) ?? 0) + 1);
-  return codes.reduce((best, c) => (counts.get(describe(c).label)! > counts.get(describe(best).label)! ? c : best));
+  for (const c of codes) counts.set(describe(c).kind, (counts.get(describe(c).kind) ?? 0) + 1);
+  return codes.reduce((best, c) => (counts.get(describe(c).kind)! > counts.get(describe(best).kind)! ? c : best));
 }
 
 const average = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
@@ -84,7 +85,7 @@ async function fetchWeekend(start: { name: string; coordinates: [number, number]
       rainChance: Math.round(average(places.map((p) => p.daily.precipitation_probability_max[i] ?? 0))),
     };
   });
-  return { place: start?.name ?? "Bosna i Hercegovina", days };
+  return { place: start?.name ?? null, days };
 }
 
 /**
@@ -111,11 +112,8 @@ export function useWeekendForecast(start: { name: string; coordinates: [number, 
   return loaded?.key === key ? loaded.forecast : undefined;
 }
 
-const dayNames = ["Nedjelja", "Ponedjeljak", "Utorak", "Srijeda", "Četvrtak", "Petak", "Subota"];
-const monthNames = ["jan", "feb", "mar", "apr", "maj", "jun", "jul", "avg", "sep", "okt", "nov", "dec"];
-
-/** "Subota, 1. nov". */
-export function dayLabel(date: string): string {
+/** "Subota, 1. nov", "Saturday, 1 Nov". */
+export function dayLabel(date: string, t: Dict): string {
   const [, m, d] = date.split("-").map(Number);
-  return `${dayNames[weekday(date)]}, ${d}. ${monthNames[m - 1]}`;
+  return t.dayLabel(t.days[weekday(date)], d, t.months[m - 1]);
 }

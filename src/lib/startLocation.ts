@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from "react";
 import { cities } from "@/data/cities";
+import type { Dict } from "@/i18n/dictionaries";
 import { distanceKm } from "./recommend";
 
 /** Where the family sets out from: a picked town, or the browser's location named after the nearest town. */
@@ -86,8 +87,8 @@ export function nearestTown(coordinates: [number, number]) {
 }
 
 /** "~45 km", rounded more coarsely the further away it is. */
-export function formatKm(km: number): string {
-  if (km < 1) return "manje od 1 km";
+export function formatKm(km: number, t: Dict): string {
+  if (km < 1) return t.units.underOneKm;
   return `~${km < 100 ? Math.round(km) : Math.round(km / 5) * 5} km`;
 }
 

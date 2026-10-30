@@ -1,13 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/i18n/LangProvider";
 import { nearestTown, saveStartLocation, towns, type StartLocation } from "@/lib/startLocation";
-
-const geoErrors: Record<number, string> = {
-  1: "Pristup lokaciji je odbijen. Odaberi grad iz liste.",
-  2: "Lokacija trenutno nije dostupna. Odaberi grad iz liste.",
-  3: "Traženje lokacije je trajalo predugo. Pokušaj ponovo ili odaberi grad.",
-};
 
 function PinIcon({ className = "size-4" }: { className?: string }) {
   return (
@@ -20,12 +15,13 @@ function PinIcon({ className = "size-4" }: { className?: string }) {
 
 /** Sets where the family starts from: the browser's location on request, or a town from the list. */
 export default function StartLocationPicker({ location }: { location: StartLocation | null }) {
+  const t = useT();
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function locate() {
     if (!("geolocation" in navigator)) {
-      setError("Ovaj preglednik ne podržava lokaciju. Odaberi grad iz liste.");
+      setError(t.start.unsupported);
       return;
     }
     setLocating(true);
@@ -37,14 +33,14 @@ export default function StartLocationPicker({ location }: { location: StartLocat
         const coordinates: [number, number] = [+coords.latitude.toFixed(2), +coords.longitude.toFixed(2)];
         const town = nearestTown(coordinates);
         if (!town) {
-          setError("Izgleda da nisi u Bosni i Hercegovini. Odaberi grad iz kojeg krećete.");
+          setError(t.start.outside);
           return;
         }
         saveStartLocation({ name: town.name, coordinates, source: "gps" });
       },
       (e) => {
         setLocating(false);
-        setError(geoErrors[e.code] ?? geoErrors[2]);
+        setError(e.code === e.PERMISSION_DENIED ? t.start.denied : e.code === e.TIMEOUT ? t.start.timeout : t.start.unavailable);
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 10 * 60 * 1000 },
     );
@@ -65,14 +61,14 @@ export default function StartLocationPicker({ location }: { location: StartLocat
         </span>
         <p className="min-w-0 flex-1">
           <strong className="block truncate font-medium">{location.name}</strong>
-          <span className="text-[13px] text-muted">{location.source === "gps" ? "Tvoja lokacija (u blizini)" : "Odabrani grad"}</span>
+          <span className="text-[13px] text-muted">{location.source === "gps" ? t.start.yourLocation : t.start.pickedTown}</span>
         </p>
         <button
           type="button"
           onClick={() => saveStartLocation(null)}
           className="shrink-0 text-[13px] font-medium text-accent hover:underline"
         >
-          Promijeni
+          {t.start.change}
         </button>
       </div>
     );
@@ -87,10 +83,10 @@ export default function StartLocationPicker({ location }: { location: StartLocat
         className="flex w-full items-center justify-center gap-2 rounded-full bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-soft transition active:scale-[0.98] disabled:opacity-70"
       >
         <PinIcon />
-        {locating ? "Tražim lokaciju…" : "Koristi moju lokaciju"}
+        {locating ? t.start.locating : t.start.useMyLocation}
       </button>
       <label className="sr-only" htmlFor="start-town">
-        Odaberi grad iz kojeg krećete
+        {t.start.pickTownLabel}
       </label>
       <select
         id="start-town"
@@ -99,7 +95,7 @@ export default function StartLocationPicker({ location }: { location: StartLocat
         className="w-full rounded-full border-0 bg-page px-4 py-2.5 text-sm font-medium text-ink shadow-[inset_0_1px_0_var(--rim),0_1px_3px_rgba(40,52,80,.08)]"
       >
         <option value="" disabled>
-          ili odaberi grad
+          {t.start.orPickTown}
         </option>
         {towns.map((t) => (
           <option key={t.name} value={t.name}>

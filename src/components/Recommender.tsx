@@ -7,30 +7,31 @@ import ActivityDetail from "@/components/ActivityDetail";
 import BosniaMap from "@/components/BosniaMap";
 import DirectionsLink from "@/components/DirectionsLink";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
+import LanguageSwitch from "@/components/LanguageSwitch";
 import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
 import StartHint, { markStartHintSeen, useFirstVisit } from "@/components/StartHint";
 import StartLocationPicker from "@/components/StartLocationPicker";
 import WeatherWidget, { isRainy } from "@/components/WeatherWidget";
 import WeekendPlanner from "@/components/WeekendPlanner";
-import { activities } from "@/data/activities";
 import { cities } from "@/data/cities";
+import type { Dict } from "@/i18n/dictionaries";
+import { useActivities, useT } from "@/i18n/LangProvider";
 import { ACTIVITY_PARAM, noFilters, pageQuery } from "@/lib/filtersUrl";
 import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
 import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
 import { directionsUrl, formatDrive, tripKm, useDrives, type Trip } from "@/lib/driving";
-import { costLabel, placeLabel } from "@/lib/labels";
 import { useStartLocation } from "@/lib/startLocation";
 import type { Activity, Preferences } from "@/lib/types";
 
 /** How long the hero waits for the weather before picking as on a dry day. */
 const WEATHER_WAIT_MS = 2500;
-/** Cards shown before "Prikaži sve". */
+/** Cards shown before "Prikaži sve" (show all). */
 const FIRST_CARDS = 8;
 const SHUFFLE_MS = 900;
 const SHUFFLE_STEP_MS = 90;
 
-/** How many filters are set, for the badge on the "Filteri" button. */
+/** How many filters are set, for the badge on the "Filteri" (filters) button. */
 function filterCount(prefs: Preferences, hasStart: boolean): number {
   return [
     prefs.place !== "any",
@@ -43,14 +44,10 @@ function filterCount(prefs: Preferences, hasStart: boolean): number {
   ].filter(Boolean).length;
 }
 
-/** "Pronađena 1 aktivnost", "Pronađene 3 aktivnosti", "Pronađeno 5 aktivnosti" (Bosnian plural forms). */
-function resultsText(count: number, nearCity: boolean): string {
-  if (count === 0) return nearCity ? `Nijedna aktivnost u krugu od ${NEAR_CITY_KM} km.` : "Nijedna aktivnost ne odgovara odabiru.";
-  const lastDigit = count % 10;
-  const lastTwo = count % 100;
-  if (lastDigit === 1 && lastTwo !== 11) return `Pronađena ${count} aktivnost`;
-  if (lastDigit >= 2 && lastDigit <= 4 && (lastTwo < 12 || lastTwo > 14)) return `Pronađene ${count} aktivnosti`;
-  return `Pronađeno ${count} aktivnosti`;
+/** "Pronađeno 5 aktivnosti", or why there are none. */
+function resultsText(count: number, nearCity: boolean, t: Dict): string {
+  if (count === 0) return nearCity ? t.list.noneNearCity(NEAR_CITY_KM) : t.list.none;
+  return t.list.found(count);
 }
 
 /** Lower case without accents, so "cevapi" finds "Ćevapi" and "dzamija" finds "džamija". */
@@ -114,6 +111,7 @@ interface PlaceCardProps {
 }
 
 function PlaceCard({ a, active, trip, from, onHover, onFeature, onOpen }: PlaceCardProps) {
+  const t = useT();
   return (
     <article
       id={`card-${a.id}`}
@@ -134,25 +132,25 @@ function PlaceCard({ a, active, trip, from, onHover, onFeature, onOpen }: PlaceC
           </h3>
           <p className="text-[13px] text-muted">{a.location}</p>
         </div>
-        <button type="button" onClick={() => onFeature(a.id)} aria-label={`Istakni: ${a.title}`} className={`relative z-10 ${roundButton}`}>
+        <button type="button" onClick={() => onFeature(a.id)} aria-label={t.feature(a.title)} className={`relative z-10 ${roundButton}`}>
           <Arrow />
         </button>
       </div>
       <p className="line-clamp-2 px-2 pt-2 text-[13px] text-muted">{a.description}</p>
       <div className="mt-auto flex flex-wrap gap-1.5 px-2 pt-2.5 text-xs">
-        {trip && <Tag tone="km">{tripKm(trip)}</Tag>}
-        {trip?.minutes !== undefined && <Tag tone="km">🚗 {formatDrive(trip.minutes)}</Tag>}
-        <Tag>{placeLabel[a.place]}</Tag>
-        <Tag tone={a.cost === "free" ? "free" : "plain"}>{costLabel[a.cost]}</Tag>
-        {a.coffee && <Tag>☕ Kafa</Tag>}
+        {trip && <Tag tone="km">{tripKm(trip, t)}</Tag>}
+        {trip?.minutes !== undefined && <Tag tone="km">🚗 {formatDrive(trip.minutes, t)}</Tag>}
+        <Tag>{t.place[a.place]}</Tag>
+        <Tag tone={a.cost === "free" ? "free" : "plain"}>{t.cost[a.cost]}</Tag>
+        {a.coffee && <Tag>☕ {t.coffee}</Tag>}
       </div>
       <DirectionsLink
         href={directionsUrl(a.coordinates, from)}
-        label={`Kako doći: ${a.title} (otvara Google Maps)`}
+        label={t.directionsLabel(a.title)}
         className="relative z-10 mx-2 mt-3 flex items-center justify-center gap-2 rounded-full bg-accent/12 py-2 text-[13px] font-medium text-accent transition hover:bg-accent/20"
       >
         <NavIcon />
-        Kako doći
+        {t.directions}
       </DirectionsLink>
     </article>
   );
@@ -173,12 +171,13 @@ function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () =>
 
 /**
  * Tile with a coloured pictogram for a feature that is not built yet. It is deliberately not a
- * button and carries an "Uskoro" badge, so nobody clicks it expecting something to happen.
+ * button and carries an "Uskoro" (soon) badge, so nobody clicks it expecting something to happen.
  */
 function ComingSoonTile({ label, children }: { label: string; children: ReactNode }) {
+  const t = useT();
   return (
     <li className="relative grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card">
-      <span className="absolute top-2 right-2 rounded-full bg-sun/90 px-2 py-0.5 text-[10px] font-semibold text-[#14305a]">Uskoro</span>
+      <span className="absolute top-2 right-2 rounded-full bg-sun/90 px-2 py-0.5 text-[10px] font-semibold text-[#14305a]">{t.soon}</span>
       <svg viewBox="0 0 40 40" className="size-9" aria-hidden>
         {children}
       </svg>
@@ -195,6 +194,8 @@ export default function Recommender({
   /** Activity whose details a shared link (?aktivnost=…) opens. */
   initialActivityId?: string | null;
 }) {
+  const t = useT();
+  const activities = useActivities();
   // Filters apply straight away; they are also kept in the address bar so the page can be shared.
   const [prefs, setPrefsState] = useState<Preferences>(initialPrefs ?? noFilters);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -280,7 +281,7 @@ export default function Recommender({
     };
     window.addEventListener("popstate", onBack);
     return () => window.removeEventListener("popstate", onBack);
-  }, []);
+  }, [activities]);
 
   function openDetail(id: string) {
     // Switching to another activity inside the popup replaces the entry instead of adding one.
@@ -375,14 +376,14 @@ export default function Recommender({
   const featuredTrip = featured && tripFor(featured);
   const nearestTrip = nearest ? tripFor(nearest) : undefined;
   const eyebrow = shuffling
-    ? "Biramo…"
+    ? t.hero.picking
     : suggested
-      ? "Naš prijedlog"
+      ? t.hero.suggested
       : featured && picks?.includes(featured.id)
         ? rainy
-          ? "Za kišni dan"
-          : "Izlet sedmice"
-        : "Izdvojeno";
+          ? t.hero.rainy
+          : t.hero.weekly
+        : t.hero.featured;
 
   return (
     <div className="space-y-6">
@@ -395,25 +396,26 @@ export default function Recommender({
 
       <header className="flex flex-wrap items-center gap-6">
         <div className="min-w-0 flex-[1_1_320px]">
-          <h1 className="text-[clamp(28px,3.4vw,40px)] leading-tight font-semibold tracking-tight">Gdje ćemo danas?👋</h1>
-          <p className="mt-1.5 text-[17px] text-muted">
-            Otkrij zadivljujuća odredišta, stvori nezaboravne uspomene i doživi ljepotu naše zemlje – putovanje po putovanje.
-          </p>
+          <h1 className="text-[clamp(28px,3.4vw,40px)] leading-tight font-semibold tracking-tight">{t.header.greeting}👋</h1>
+          <p className="mt-1.5 text-[17px] text-muted">{t.header.intro}</p>
         </div>
-        <label className="flex flex-[0_1_300px] items-center gap-2.5 rounded-full bg-surface px-5 py-3.5 shadow-card focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
-          <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-            <circle cx={11} cy={11} r={7} />
-            <path d="m20 20-3.5-3.5" />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Pretraži aktivnosti..."
-            aria-label="Pretraži aktivnosti"
-            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted"
-          />
-        </label>
+        <div className="flex min-w-0 flex-[1_1_100%] items-center gap-3 sm:flex-[0_1_380px]">
+          <label className="flex min-w-0 flex-1 items-center gap-2.5 rounded-full bg-surface px-5 py-3.5 shadow-card focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent">
+            <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <circle cx={11} cy={11} r={7} />
+              <path d="m20 20-3.5-3.5" />
+            </svg>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t.header.search}
+              aria-label={t.header.searchLabel}
+              className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted"
+            />
+          </label>
+          <LanguageSwitch />
+        </div>
       </header>
 
       <section className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_270px]">
@@ -439,10 +441,10 @@ export default function Recommender({
                     <p className="mt-1.5 font-serif text-[22px] sm:text-[26px]">{featured.location}</p>
                     <p className="mt-4 line-clamp-3 max-w-[34ch] opacity-95">{featured.description}</p>
                     <p className="mt-3 text-sm opacity-90">
-                      {featuredTrip && `${tripKm(featuredTrip)} od vas · `}
-                      {featuredTrip?.minutes !== undefined && `🚗 ${formatDrive(featuredTrip.minutes)} · `}
-                      {featured.indoor ? "Unutra" : "Vani"} · {costLabel[featured.cost]}
-                      {featured.coffee && " · ☕ Kafa"}
+                      {featuredTrip && `${t.fromYou(tripKm(featuredTrip, t))} · `}
+                      {featuredTrip?.minutes !== undefined && `🚗 ${formatDrive(featuredTrip.minutes, t)} · `}
+                      {featured.indoor ? t.indoor : t.outdoor} · {t.cost[featured.cost]}
+                      {featured.coffee && ` · ☕ ${t.coffee}`}
                     </p>
                     <div className="mt-6 flex flex-wrap items-center gap-3">
                       <button
@@ -450,23 +452,23 @@ export default function Recommender({
                         onClick={() => openDetail(featured.id)}
                         className="inline-flex items-center gap-3 rounded-full border-2 border-white/85 bg-[rgba(20,48,90,.55)] px-[26px] py-3 font-medium backdrop-blur-sm transition hover:bg-[rgba(20,48,90,.75)]"
                       >
-                        Detalji
+                        {t.hero.details}
                         <LongArrow />
                       </button>
                       <DirectionsLink
                         href={directionsUrl(featured.coordinates, start?.coordinates)}
-                        label={`Kako doći: ${featured.title} (otvara Google Maps)`}
+                        label={t.directionsLabel(featured.title)}
                         className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 font-medium text-[#14305a] transition hover:bg-white/90"
                       >
                         <NavIcon />
-                        Kako doći
+                        {t.directions}
                       </DirectionsLink>
                     </div>
                   </div>
                   {/* In the flow under the text (not pinned to the corner), so a long description never runs into them */}
                   <div
                     role="group"
-                    aria-label="Izaberi istaknuti izlet"
+                    aria-label={t.hero.pickLabel}
                     className="relative mt-auto flex items-center gap-2.5 px-[26px] pt-6 pb-[26px] sm:px-11 sm:pb-[34px]"
                   >
                     {thumbs.map((id) => {
@@ -497,7 +499,7 @@ export default function Recommender({
             className="flex items-center justify-center gap-1.5 pt-1.5 pl-3 font-script text-[54px] leading-[.9] text-accent sm:col-span-2 lg:col-span-1 lg:-rotate-[8deg] lg:justify-start"
             aria-hidden
           >
-            Hajmo vani!
+            {t.hero.tagline}
             <svg width="40" height="40" viewBox="0 0 40 40" className="shrink-0">
               <circle cx={20} cy={20} r={7} className="fill-sun" />
               <g className="stroke-sun" strokeWidth={2.5} strokeLinecap="round">
@@ -507,7 +509,7 @@ export default function Recommender({
           </p>
           <WeatherWidget onWeather={(code) => setRainy(code !== null && isRainy(code))} />
           <div ref={startCard} className={`${card} p-5`}>
-            <h3 className="mb-3.5 font-serif text-[21px]">Polazište</h3>
+            <h3 className="mb-3.5 font-serif text-[21px]">{t.start.title}</h3>
             <StartLocationPicker location={start} />
             {nearest && (
               <div className="mt-4 flex items-center gap-3 border-t border-line pt-4">
@@ -515,12 +517,12 @@ export default function Recommender({
                   <Photo a={nearest} sizes="56px" />
                 </div>
                 <p className="min-w-0 flex-1 text-[13px] text-muted">
-                  Najbliže
+                  {t.start.nearest}
                   <strong className="block truncate text-[15px] font-medium text-ink">{nearest.title}</strong>
-                  {nearestTrip ? `${tripKm(nearestTrip)} od vas` : "Računam udaljenost…"}
-                  {nearestTrip?.minutes !== undefined && ` · 🚗 ${formatDrive(nearestTrip.minutes)}`}
+                  {nearestTrip ? t.fromYou(tripKm(nearestTrip, t)) : t.calculating}
+                  {nearestTrip?.minutes !== undefined && ` · 🚗 ${formatDrive(nearestTrip.minutes, t)}`}
                 </p>
-                <button type="button" onClick={() => feature(nearest.id)} aria-label={`Istakni: ${nearest.title}`} className={roundButton}>
+                <button type="button" onClick={() => feature(nearest.id)} aria-label={t.feature(nearest.title)} className={roundButton}>
                   <Arrow />
                 </button>
               </div>
@@ -545,25 +547,25 @@ export default function Recommender({
         <div className="flex flex-wrap items-end justify-between gap-4 px-2">
           <div>
             <h2 id="aktivnosti-naslov" className="font-serif text-[clamp(26px,3vw,34px)] leading-tight">
-              Aktivnosti za porodice
+              {t.list.title}
             </h2>
             <p className="mt-1 text-muted" aria-live="polite">
-              {resultsText(results.length, !!city)}
-              {start && results.length > 0 && `, najbliže od mjesta ${start.name} prvo`}
+              {resultsText(results.length, !!city, t)}
+              {start && results.length > 0 && t.list.nearestFirst(start.name)}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Brzi filteri">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t.list.quickFilters}>
             <Chip pressed={prefs.place === "any"} onClick={() => setPrefs({ ...prefs, place: "any" })}>
-              Sve
+              {t.list.all}
             </Chip>
             <Chip pressed={prefs.place === "nature"} onClick={() => toggle("place", "nature")}>
-              Priroda
+              {t.place.nature}
             </Chip>
             <Chip pressed={prefs.place === "city"} onClick={() => toggle("place", "city")}>
-              Grad
+              {t.place.city}
             </Chip>
             <Chip pressed={prefs.budget === "free"} onClick={() => toggle("budget", "free")}>
-              Besplatno
+              {t.cost.free}
             </Chip>
             <button
               type="button"
@@ -571,7 +573,7 @@ export default function Recommender({
               className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-[13px] font-medium shadow-soft"
             >
               <SlidersIcon />
-              Filteri
+              {t.list.filters}
               {activeFilters > 0 && (
                 <span className="grid size-5 place-items-center rounded-full bg-ink text-[11px] text-surface">{activeFilters}</span>
               )}
@@ -585,10 +587,10 @@ export default function Recommender({
               <button
                 type="button"
                 onClick={() => setCityName(null)}
-                aria-label={`Prikaži aktivnosti i izvan okoline grada ${city.name}`}
+                aria-label={t.list.leaveCity(city.name)}
                 className="rounded-full bg-accent/12 px-3 py-1 font-medium text-accent"
               >
-                Kod: {city.name} ✕
+                {t.list.nearCity(city.name)} ✕
               </button>
             )}
             {folded && (
@@ -597,7 +599,7 @@ export default function Recommender({
               </button>
             )}
             <button type="button" onClick={reset} className="rounded-full px-3 py-1 font-medium text-muted hover:text-ink">
-              Poništi sve
+              {t.list.resetAll}
             </button>
           </div>
         )}
@@ -606,7 +608,7 @@ export default function Recommender({
           {visible.map((a) => (
             <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onOpen={openDetail} onFeature={feature} />
           ))}
-          {results.length === 0 && <p className="col-span-full py-10 text-center text-muted">{resultsText(0, !!city)}</p>}
+          {results.length === 0 && <p className="col-span-full py-10 text-center text-muted">{resultsText(0, !!city, t)}</p>}
         </div>
         {results.length > FIRST_CARDS && (
           <div className="mt-6 text-center">
@@ -615,7 +617,7 @@ export default function Recommender({
               onClick={() => setShowAll(!showAll)}
               className="rounded-full bg-page px-6 py-2.5 text-sm font-medium shadow-[inset_0_1px_0_var(--rim),0_1px_3px_rgba(40,52,80,.08)]"
             >
-              {showAll ? "Prikaži manje" : `Prikaži sve (${results.length})`}
+              {showAll ? t.list.showLess : t.list.showAll(results.length)}
             </button>
           </div>
         )}
@@ -651,8 +653,8 @@ export default function Recommender({
             <Image src="/activities/trebevic-hiking.jpg" alt="" fill sizes="(min-width: 1024px) 34rem, 100vw" className="object-cover object-[center_60%]" />
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(14,34,66,.7),rgba(14,34,66,.1)_75%)]" />
             <div className="relative max-w-[360px] px-[34px] py-[30px]">
-              <p className="font-serif text-[22px]">Za inspiraciju</p>
-              <blockquote className="mt-[18px] font-serif text-[26px] leading-tight">„Najljepše uspomene nastaju zajedno, napolju.“</blockquote>
+              <p className="font-serif text-[22px]">{t.quote.title}</p>
+              <blockquote className="mt-[18px] font-serif text-[26px] leading-tight">{t.quote.text}</blockquote>
               <figcaption className="mt-2.5 text-[13px] opacity-85">Family Time</figcaption>
             </div>
           </figure>
@@ -661,9 +663,9 @@ export default function Recommender({
               <Photo a={(suggested && featured) || activities.find((a) => a.id === "stari-most")!} sizes="76px" />
             </div>
             <p className="min-w-0 flex-1">
-              <strong className="block font-medium">Ne znate kuda?</strong>
+              <strong className="block font-medium">{t.suggest.title}</strong>
               <span className="text-[13px] text-muted">
-                {suggested && !shuffling && featured ? `Kako bi bilo: ${featured.title}?` : "Pustite nas da predložimo izlet."}
+                {suggested && !shuffling && featured ? t.suggest.howAbout(featured.title) : t.suggest.idle}
               </span>
             </p>
             <button
@@ -678,46 +680,46 @@ export default function Recommender({
                 <circle cx={15.5} cy={15.5} r={1.2} fill="currentColor" />
                 <circle cx={12} cy={12} r={1.2} fill="currentColor" />
               </svg>
-              Predloži
+              {t.suggest.button}
             </button>
           </div>
         </div>
 
         <div className="grid content-start gap-[18px]">
-          <ul className="m-0 grid list-none grid-cols-2 gap-3.5 p-0 sm:grid-cols-4" aria-label="Uskoro na Family Time">
-            <ComingSoonTile label="Top destinacije">
+          <ul className="m-0 grid list-none grid-cols-2 gap-3.5 p-0 sm:grid-cols-4" aria-label={t.comingSoon.label}>
+            <ComingSoonTile label={t.comingSoon.top}>
               {/* A star above a winners' podium */}
               <rect x={6} y={26} width={9} height={10} rx={1.5} fill="#c99a5b" />
               <rect x={15.5} y={20} width={9} height={16} rx={1.5} className="fill-accent" />
               <rect x={25} y={29} width={9} height={7} rx={1.5} fill="#c99a5b" />
               <path d="M20 4 21.76 8.57 26.66 8.84 22.85 11.93 24.11 16.66 20 14 15.89 16.66 17.15 11.93 13.34 8.84 18.24 8.57Z" className="fill-sun" stroke="#14305a" strokeWidth={1} strokeLinejoin="round" />
             </ComingSoonTile>
-            <ComingSoonTile label="Predloži destinaciju">
+            <ComingSoonTile label={t.comingSoon.propose}>
               {/* A map pin with a plus: add a new place */}
               <path d="M20 3a11 11 0 0 0-11 11c0 8 11 22 11 22s11-14 11-22A11 11 0 0 0 20 3z" className="fill-accent" />
               <path d="M20 9v10M15 14h10" stroke="white" strokeWidth={3} strokeLinecap="round" />
             </ComingSoonTile>
-            <ComingSoonTile label="Poredi destinacije">
+            <ComingSoonTile label={t.comingSoon.compare}>
               {/* Two places side by side, with arrows going both ways */}
               <rect x={3} y={4} width={13} height={20} rx={3} fill="#c99a5b" />
               <rect x={24} y={4} width={13} height={20} rx={3} className="fill-accent" />
               <path d="M6 18h7M6 21h5M27 18h7M27 21h5" stroke="white" strokeWidth={1.6} strokeLinecap="round" />
               <path d="M10 30h20m-4-3 4 3-4 3M30 36H10m4-3-4 3 4 3" fill="none" stroke="#14305a" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-[#e7edf7]" />
             </ComingSoonTile>
-            <ComingSoonTile label="Moji favoriti">
+            <ComingSoonTile label={t.comingSoon.favourites}>
               <path d="M20 34S5 25 5 15a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 10-15 19-15 19z" fill="#e25b5b" />
               <path d="M12.5 13.5a4 4 0 0 1 4-3" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" opacity={0.7} />
             </ComingSoonTile>
           </ul>
 
           <div className="relative min-h-[260px] overflow-hidden rounded-[30px] border-8 border-rim bg-[linear-gradient(140deg,color-mix(in_srgb,var(--soft)_22%,var(--surface)),var(--surface)_70%)] px-[30px] py-7 shadow-card">
-            <h3 className="text-[22px] font-semibold tracking-tight">Istraži mapu</h3>
-            <p className="mt-1.5 max-w-[22ch] text-muted">{results.length} aktivnosti širom Bosne i Hercegovine.</p>
+            <h3 className="text-[22px] font-semibold tracking-tight">{t.mapCard.title}</h3>
+            <p className="mt-1.5 max-w-[22ch] text-muted">{t.mapCard.text(results.length)}</p>
             <a
               href="#mapa"
               className="relative z-10 mt-[18px] inline-flex items-center gap-2.5 rounded-full bg-surface px-5 py-2.5 text-sm font-medium shadow-soft"
             >
-              Otvori mapu
+              {t.mapCard.open}
               <LongArrow />
             </a>
             <div className="absolute right-2 -bottom-1.5 w-[min(62%,330px)] opacity-45 sm:opacity-100">
@@ -734,9 +736,9 @@ export default function Recommender({
       <section id="mapa" aria-labelledby="mapa-naslov" className={`${card} scroll-mt-6 px-4 pt-[26px] pb-6 sm:px-8`}>
         <div className="flex flex-wrap items-end justify-between gap-2 px-2">
           <h2 id="mapa-naslov" className="font-serif text-[clamp(26px,3vw,34px)] leading-tight">
-            Mapa aktivnosti
+            {t.map.title}
           </h2>
-          <p className="text-[13px] text-muted">Klikni grad za aktivnosti u blizini, ili tačku za karticu.</p>
+          <p className="text-[13px] text-muted">{t.map.help}</p>
         </div>
         <div className="mx-auto mt-4 max-w-[60rem]">
           <BosniaMap

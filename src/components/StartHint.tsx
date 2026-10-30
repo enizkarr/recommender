@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import { useT } from "@/i18n/LangProvider";
 
 // Remembered in the browser once the hint has been closed, so it only greets first-time visitors.
 const STORAGE_KEY = "family-time:start-hint-seen";
@@ -55,6 +56,7 @@ function dimmedOutside({ x, y, w, h, r }: Hole): string {
  * dimmed page are swallowed, because a first click there is usually an accident, made before reading.
  */
 export default function StartHint({ target, onClose }: { target: RefObject<HTMLElement | null>; onClose: () => void }) {
+  const t = useT();
   const [hole, setHole] = useState<Hole | null>(null);
 
   // Follow the card while the page scrolls or resizes.
@@ -105,12 +107,12 @@ export default function StartHint({ target, onClose }: { target: RefObject<HTMLE
       >
         <div className="flex items-center gap-1 rounded-full bg-surface py-1 pr-1 pl-4 text-sm font-medium text-ink shadow-card">
           <p>
-            Odaberi odakle krećete <span className="text-muted">(nije obavezno)</span>
+            {t.start.hint} <span className="text-muted">{t.start.hintOptional}</span>
           </p>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Zatvori uputu"
+            aria-label={t.start.closeHint}
             className="pointer-events-auto grid size-7 shrink-0 place-items-center rounded-full text-muted transition hover:bg-page hover:text-ink"
           >
             ✕

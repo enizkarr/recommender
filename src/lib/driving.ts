@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Dict } from "@/i18n/dictionaries";
 import { formatKm } from "./startLocation";
 import type { Activity } from "./types";
 
@@ -18,8 +19,8 @@ export interface Trip {
 }
 
 /** "~45 km" by road, or "~38 km zračno" when only the straight-line distance is known. */
-export function tripKm(trip: Trip): string {
-  return trip.straight ? `${formatKm(trip.km)} zračno` : formatKm(trip.km);
+export function tripKm(trip: Trip, t: Dict): string {
+  return trip.straight ? t.units.straight(formatKm(trip.km, t)) : formatKm(trip.km, t);
 }
 
 /** Drives per activity id; activities the router cannot reach by road are left out. */
@@ -95,8 +96,8 @@ export function directionsUrl(to: [number, number], from?: [number, number]): st
 }
 
 /** "15 min", "1 h 10 min", "2 h": rounded to 5 minutes, since road times are estimates anyway. */
-export function formatDrive(minutes: number): string {
-  if (minutes < 5) return "do 5 min";
+export function formatDrive(minutes: number, t: Dict): string {
+  if (minutes < 5) return t.units.underFiveMin;
   const rounded = Math.round(minutes / 5) * 5;
   if (rounded < 60) return `${rounded} min`;
   const h = Math.floor(rounded / 60);

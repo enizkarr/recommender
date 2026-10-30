@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cities } from "@/data/cities";
+import { useT } from "@/i18n/LangProvider";
 import { useStartLocation } from "@/lib/startLocation";
 
 // Spread across the country; without a starting point their combined weather is shown, as a picture of the whole of BiH.
@@ -17,32 +18,48 @@ interface CityWeather {
 
 /** What the card shows: one place's weather, or the whole country summed up. */
 interface Weather {
-  place: string;
+  /** The starting point, or null for the whole country. */
+  place: string | null;
   temperature: number;
   code: number;
   isDay: boolean;
   min: number;
   max: number;
-  /** Small note under the bubble, saying what the numbers cover. */
-  note: string;
+  /** What the numbers cover, for the note under the bubble: an average of this many cities, or one place today. */
+  averageOf: number | null;
 }
 
 export type Sky = "clear" | "partly" | "overcast" | "fog" | "rain" | "snow" | "storm";
 
-/** WMO weather code (as used by Open-Meteo) to a Bosnian label and a sky type. */
-export function describe(code: number): { label: string; sky: Sky } {
-  if (code === 0) return { label: "Vedro", sky: "clear" };
-  if (code === 1) return { label: "Pretežno vedro", sky: "clear" };
-  if (code === 2) return { label: "Djelimično oblačno", sky: "partly" };
-  if (code === 3) return { label: "Oblačno", sky: "overcast" };
-  if (code === 45 || code === 48) return { label: "Magla", sky: "fog" };
-  if (code >= 51 && code <= 57) return { label: "Rosulja", sky: "rain" };
-  if (code >= 61 && code <= 67) return { label: "Kiša", sky: "rain" };
-  if (code >= 71 && code <= 77) return { label: "Snijeg", sky: "snow" };
-  if (code >= 80 && code <= 82) return { label: "Pljuskovi", sky: "rain" };
-  if (code === 85 || code === 86) return { label: "Snježni pljuskovi", sky: "snow" };
-  if (code >= 95) return { label: "Grmljavina", sky: "storm" };
-  return { label: "Promjenljivo", sky: "partly" };
+/** The kinds of weather the page names; the names themselves are in the dictionaries (t.weather). */
+export type WeatherKind =
+  | "clear"
+  | "mostlyClear"
+  | "partly"
+  | "overcast"
+  | "fog"
+  | "drizzle"
+  | "rain"
+  | "snow"
+  | "showers"
+  | "snowShowers"
+  | "storm"
+  | "changeable";
+
+/** WMO weather code (as used by Open-Meteo) to the kind of weather and a sky type. */
+export function describe(code: number): { kind: WeatherKind; sky: Sky } {
+  if (code === 0) return { kind: "clear", sky: "clear" };
+  if (code === 1) return { kind: "mostlyClear", sky: "clear" };
+  if (code === 2) return { kind: "partly", sky: "partly" };
+  if (code === 3) return { kind: "overcast", sky: "overcast" };
+  if (code === 45 || code === 48) return { kind: "fog", sky: "fog" };
+  if (code >= 51 && code <= 57) return { kind: "drizzle", sky: "rain" };
+  if (code >= 61 && code <= 67) return { kind: "rain", sky: "rain" };
+  if (code >= 71 && code <= 77) return { kind: "snow", sky: "snow" };
+  if (code >= 80 && code <= 82) return { kind: "showers", sky: "rain" };
+  if (code === 85 || code === 86) return { kind: "snowShowers", sky: "snow" };
+  if (code >= 95) return { kind: "storm", sky: "storm" };
+  return { kind: "changeable", sky: "partly" };
 }
 
 // Thin white line icons in the style of the weather design.
@@ -126,13 +143,13 @@ async function fetchCountry(): Promise<Weather> {
   const overall = mostCommon(list);
   const temps = list.map((c) => c.temperature);
   return {
-    place: "Bosna i Hercegovina",
+    place: null,
     temperature: Math.round(temps.reduce((sum, t) => sum + t, 0) / temps.length),
     code: overall.code,
     isDay: overall.isDay,
     min: Math.min(...temps),
     max: Math.max(...temps),
-    note: `prosjek ${list.length} ${list.length >= 5 ? "gradova" : "grada"}`,
+    averageOf: list.length,
   };
 }
 
@@ -159,15 +176,15 @@ async function fetchPlace(place: string, [latitude, longitude]: [number, number]
     isDay: data.current.is_day === 1,
     min: Math.round(data.daily.temperature_2m_min[0]),
     max: Math.round(data.daily.temperature_2m_max[0]),
-    note: "min. i maks. za danas",
+    averageOf: null,
   };
 }
 
 /** The condition shared by the most cities; ties go to the first city in the list. */
 function mostCommon(list: CityWeather[]): CityWeather {
   const counts = new Map<string, number>();
-  for (const c of list) counts.set(describe(c.code).label, (counts.get(describe(c.code).label) ?? 0) + 1);
-  return list.reduce((best, c) => (counts.get(describe(c.code).label)! > counts.get(describe(best.code).label)! ? c : best));
+  for (const c of list) counts.set(describe(c.code).kind, (counts.get(describe(c.code).kind) ?? 0) + 1);
+  return list.reduce((best, c) => (counts.get(describe(c.code).kind)! > counts.get(describe(best.code).kind)! ? c : best));
 }
 
 // Painted sky behind the numbers: one gradient per sky type, and a night-time one.
@@ -208,6 +225,7 @@ export default function WeatherWidget({
   /** Called with the weather code after each load, or null when the weather could not be loaded. */
   onWeather?: (code: number | null) => void;
 }) {
+  const t = useT();
   const start = useStartLocation();
   // Plain values, so the weather is only fetched again when the place really changes.
   const startName = start?.name;
@@ -256,12 +274,12 @@ export default function WeatherWidget({
         : `${clouds}, ${skies[summary!.sky]}`;
 
   return (
-    <aside aria-label={`Vrijeme: ${weather?.place ?? "Bosna i Hercegovina"}`} className={className}>
+    <aside aria-label={t.weather.label(weather?.place ?? t.country)} className={className}>
       <div
         className={`relative h-[230px] overflow-hidden border-[9px] border-rim text-white shadow-soft ${bubble}`}
         style={{ background }}
       >
-        {failed && !weather && <p className="absolute inset-x-8 top-20 text-sm text-white/85">Vrijeme trenutno nije dostupno.</p>}
+        {failed && !weather && <p className="absolute inset-x-8 top-20 text-sm text-white/85">{t.weather.unavailable}</p>}
 
         {!failed && !weather && (
           // Placeholder with the same shape while the first request is on its way
@@ -274,9 +292,9 @@ export default function WeatherWidget({
         {weather && summary && (
           <>
             <p className="absolute top-12 left-7 text-[56px] leading-none font-medium tracking-tight">{weather.temperature}°</p>
-            <p className="absolute top-[112px] left-8 text-[17px]">{summary.label}</p>
+            <p className="absolute top-[112px] left-8 text-[17px]">{t.weather[summary.kind]}</p>
             <p className="absolute top-[138px] left-8 text-xs text-white/85">
-              Min {weather.min}° · Maks {weather.max}°
+              {t.weather.minMax(weather.min, weather.max)}
             </p>
             {/* The painted sun already shows a clear day; other skies get their icon in that corner. */}
             {(summary.sky !== "clear" || !weather.isDay) && (
@@ -287,17 +305,18 @@ export default function WeatherWidget({
                 <path d="M12 21s-6.5-5.8-6.5-11a6.5 6.5 0 0 1 13 0C18.5 15.2 12 21 12 21Z" />
                 <circle cx={12} cy={10} r={2.3} />
               </Svg>
-              {weather.place}
+              {weather.place ?? t.country}
             </p>
           </>
         )}
       </div>
       <p className="mt-2 text-center text-[11px] text-muted">
-        {weather && `${weather.note[0].toUpperCase()}${weather.note.slice(1)} · `}Podaci:{" "}
+        {weather && `${weather.averageOf ? t.weather.average(weather.averageOf) : t.weather.today} · `}
+        {t.weather.source}{" "}
         <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer" className="underline-offset-2 hover:underline">
           Open-Meteo
         </a>
-        {updatedAt && ` · ${updatedAt.toLocaleTimeString("bs-BA", { hour: "2-digit", minute: "2-digit" })}`}
+        {updatedAt && ` · ${updatedAt.toLocaleTimeString(t.timeLocale, { hour: "2-digit", minute: "2-digit" })}`}
       </p>
     </aside>
   );
