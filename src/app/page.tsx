@@ -18,6 +18,23 @@ function RailLink({ href, label, active = false, children }: { href: string; lab
   );
 }
 
+/** A rail item for a feature that is not built yet: not a link, faded, with an "Uskoro" badge. */
+function RailSoon({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div
+      aria-label={`${label} (uskoro)`}
+      role="img"
+      className="relative grid w-[60px] shrink-0 cursor-default justify-items-center gap-1 rounded-[22px] bg-surface px-1 py-2 text-xs text-muted lg:w-[68px] lg:py-3 lg:shadow-card"
+    >
+      <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-sun/90 px-1.5 py-px text-[9px] font-semibold text-[#14305a]">Uskoro</span>
+      <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {children}
+      </svg>
+      {label}
+    </div>
+  );
+}
+
 /** Slim navigation rail: on the left on large screens, a bar across the top on smaller ones. */
 function Rail() {
   return (
@@ -43,6 +60,11 @@ function Rail() {
         <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z" />
         <path d="M9 4v13.5M15 6.5V20" />
       </RailLink>
+      <RailSoon label="Recenzije">
+        {/* A speech bubble with a star */}
+        <path d="M4 5h16v11H10l-4 3.5V16H4z" />
+        <path d="m12 7.6.95 1.9 2.1.3-1.52 1.48.36 2.1L12 12.4l-1.89.98.36-2.1-1.52-1.48 2.1-.3z" fill="currentColor" strokeWidth={0.8} />
+      </RailSoon>
     </nav>
   );
 }
