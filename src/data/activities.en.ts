@@ -285,4 +285,66 @@ export const activitiesEn: Record<string, ActivityTranslation> = {
     description: "A 98-metre waterfall, one of the highest in the Balkans, reached by a walk through beech forest above Sarajevo.",
     info: "Free. From the car park it is about 1 km on foot to the waterfall (about an hour's walk). The car park is small – arrive early at weekends.",
   },
+  "pozoriste-mladih": {
+    title: "A show at the Youth Theatre",
+    location: "Kulovića 8, Sarajevo",
+    description:
+      "A theatre that has staged children's shows for more than half a century, mostly on Sunday mornings – fairy tales, puppet shows and musicals.",
+    info: "Children's shows are traditionally on Sundays around 11:00. Check the programme and ticket prices at pozoristemladih.ba.",
+  },
+  "termalna-rivijera": {
+    title: "Thermal Riviera Ilidža",
+    location: "Butmirska cesta 18, Ilidža",
+    description:
+      "Water park with thermal pools under two domes, open all year: a lazy river, a water cave, whirlpools and a shallow pool with a little slide for the youngest.",
+    info: "The indoor pools are open all year, the outdoor ones only in summer. Prices are not published; visitors say weekends cost more and children over 12 pay the adult price.",
+  },
+  "sunnyland-indoor": {
+    title: "Sunnyland – play area and ice rink",
+    location: "Zlatište, Trebević",
+    description:
+      "The indoor part of Sunnyland on Trebević: a play area, a games room, the Kids Café and a synthetic ice rink, for days when the weather is bad.",
+    info: "From a Sarajevo family guide; check what is on and the prices at sunnyland.ba. A free bus runs to the park from the city (timetable on the park's website).",
+  },
+  "speedxtreme-karting": {
+    title: "SpeedXtreme karting",
+    location: "Stupska bb (Bingo), Sarajevo",
+    description: "A 350 m indoor karting track in the car park of the Bingo shopping centre in Stup, so you can drive in any weather.",
+    info: "Prices and the minimum age for children are not published – ask on 061 569 569 before you go.",
+  },
+  "key-room-escape": {
+    title: "Key Room Escape",
+    location: "Jezero, Sarajevo",
+    description:
+      "An escape room in the city centre: two themed rooms where the family solves riddles and logic puzzles together to get out in time.",
+    info: "Booking in advance is required. Prices and rules for children are not published – younger children usually play with an adult.",
+  },
+  "muzej-sarajeva-brusa": {
+    title: "Museum of Sarajevo – Brusa Bezistan",
+    location: "Abadžiluk 10, Baščaršija",
+    description:
+      "An old covered bazaar from 1551 with an exhibition on the history of Sarajevo and a large model of the old town. The museum also runs workshops for children.",
+    info: "Prices and opening hours are not published on the museum's website – tel. 033 239 590. The museum has four more branches, including Svrzo's House.",
+  },
+  "zemaljski-muzej": {
+    title: "National Museum of BiH",
+    location: "Zmaja od Bosne 3, Sarajevo",
+    description:
+      "The country's largest museum: a natural history collection with animals and minerals, archaeology, folk costumes and the old Sarajevo Haggadah.",
+    info: "Entry 8 KM, children 6–18 3 KM (2018 prices, may have changed). Check opening hours at zemaljskimuzej.ba.",
+  },
+  "sarajevo-80s-museum": {
+    title: "Sarajevo 80s Museum",
+    location: "Saliha Huseinbegovića Muvekita 1, Baščaršija",
+    description:
+      "A museum of 1980s Sarajevo: music, film, fashion, toys and the 1984 Winter Olympics. Parents will remember their childhood, and children will see how people lived then.",
+    info: "Entry 15 KM adults, 12 KM students, 5 KM children. Open daily 9:00–19:00 (according to sarajevo.travel).",
+  },
+  "muzej-ratnog-djetinjstva": {
+    title: "War Childhood Museum",
+    location: "Logavina 32, Sarajevo",
+    description:
+      "Personal belongings and stories of people who were children during the war. A moving museum – better for teenagers with their parents than for small children.",
+    info: "Open daily 11:00–19:00. Entry 10 KM adults, 5 KM youth 6–17, 5 and under free; family ticket 25 KM. Free entry on the last Thursday of the month, 17:00–19:00.",
+  },
 };

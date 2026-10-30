@@ -6,6 +6,9 @@ const project = (lat: number, lon: number): [number, number] => [(lon - 15.72) *
 
 const outline = `M${bosniaBorder.map(([lon, lat]) => project(lat, lon).map((v) => v.toFixed(1)).join(" ")).join("L")}Z`;
 
+/** Pins closer in height than this (in map units) get their labels stacked above and below. */
+const LABEL_CLEARANCE = 34;
+
 interface Pin {
   label: string;
   /** [latitude, longitude] */
@@ -20,6 +23,11 @@ export default function MapTeaser({ dots, from, to }: { dots: [number, number][]
   const t = useT();
   const pins = [from, to].filter((p): p is Pin => !!p).map((p) => ({ ...p, at: project(...p.coordinates) }));
   const [a, b] = pins.length === 2 ? pins.map((p) => p.at) : [];
+  // Labels sit beside their pin. When the two pins are at about the same height their labels would
+  // run into each other, so the higher pin's label moves above it and the lower one's below.
+  const stacked = a && b && Math.abs(a[1] - b[1]) < LABEL_CLEARANCE;
+  const upper = stacked ? (a[1] <= b[1] ? 0 : 1) : -1;
+  const labelDy = (i: number) => (!stacked ? 5 : i === upper ? -16 : 28);
   return (
     <svg viewBox="-10 -10 420 410" className="h-auto w-full" role="img" aria-label={t.map.teaser}>
       <path d={outline} className="fill-[color-mix(in_srgb,var(--soft)_55%,var(--surface))] stroke-rim" strokeWidth={4} strokeLinejoin="round" />
@@ -38,12 +46,12 @@ export default function MapTeaser({ dots, from, to }: { dots: [number, number][]
           strokeLinecap="round"
         />
       )}
-      {pins.map(({ label, at: [x, y] }) => (
+      {pins.map(({ label, at: [x, y] }, i) => (
         <g key={label}>
           <circle cx={x} cy={y} r={9} className="fill-sun stroke-ink" strokeWidth={3} />
           <text
             x={x + (x > 300 ? -14 : 14)}
-            y={y + 5}
+            y={y + labelDy(i)}
             textAnchor={x > 300 ? "end" : "start"}
             className="fill-ink stroke-surface text-[16px] font-semibold"
             strokeWidth={5}
