@@ -4,6 +4,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import DirectionsLink from "@/components/DirectionsLink";
 import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
+import ReviewForm from "@/components/ReviewForm";
+import ReviewList from "@/components/ReviewList";
+import { useRatingSummaries } from "@/lib/publicReviews";
 import { directionsUrl, formatDrive, tripKm, type Trip } from "@/lib/driving";
 import { useT } from "@/i18n/LangProvider";
 import { ACTIVITY_PARAM } from "@/lib/filtersUrl";
@@ -52,6 +55,7 @@ interface Props {
  */
 export default function ActivityDetail({ activity: a, trip, start, nearby, onSelect, onClose }: Props) {
   const t = useT();
+  const summaries = useRatingSummaries();
   const dialog = useRef<HTMLDialogElement>(null);
   const [shareNote, setShareNote] = useState<string | null>(null);
 
@@ -225,6 +229,17 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
             </ul>
           </section>
         )}
+
+        <section aria-labelledby="reviews-title">
+          <h3 id="reviews-title" className="mb-3 font-serif text-xl">
+            {t.reviews.title}
+          </h3>
+          {/* Keyed by activity, so picking another one from "U blizini" loads its reviews and starts a fresh form. */}
+          <div className="space-y-4">
+            <ReviewList key={`list-${a.id}`} activityId={a.id} summary={summaries?.[a.id]} />
+            <ReviewForm key={a.id} activityId={a.id} />
+          </div>
+        </section>
       </div>
     </dialog>
   );

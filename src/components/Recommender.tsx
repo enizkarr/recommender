@@ -21,6 +21,8 @@ import { ACTIVITY_PARAM, noFilters, pageQuery } from "@/lib/filtersUrl";
 import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
 import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
 import { directionsUrl, formatDrive, tripKm, useDrives, type Trip } from "@/lib/driving";
+import { useRatingSummaries } from "@/lib/publicReviews";
+import type { RatingSummary } from "@/lib/reviewLimits";
 import { useStartLocation } from "@/lib/startLocation";
 import type { Activity, Preferences } from "@/lib/types";
 
@@ -108,9 +110,11 @@ interface PlaceCardProps {
   onFeature: (id: string) => void;
   /** Opens the activity's details. */
   onOpen: (id: string) => void;
+  /** Average of the approved reviews; missing until there is at least one. */
+  rating?: RatingSummary;
 }
 
-function PlaceCard({ a, active, trip, from, onHover, onFeature, onOpen }: PlaceCardProps) {
+function PlaceCard({ a, active, trip, from, onHover, onFeature, onOpen, rating }: PlaceCardProps) {
   const t = useT();
   return (
     <article
@@ -143,6 +147,14 @@ function PlaceCard({ a, active, trip, from, onHover, onFeature, onOpen }: PlaceC
         <Tag>{t.place[a.place]}</Tag>
         <Tag tone={a.cost === "free" ? "free" : "plain"}>{t.cost[a.cost]}</Tag>
         {a.coffee && <Tag>☕ {t.coffee}</Tag>}
+        {rating && (
+          <Tag>
+            <span aria-hidden>
+              <span className="text-sun">★</span> {t.reviews.average(rating.average)} ({rating.count})
+            </span>
+            <span className="sr-only">{t.reviews.averageLabel(t.reviews.average(rating.average), t.reviews.count(rating.count))}</span>
+          </Tag>
+        )}
       </div>
       <DirectionsLink
         href={directionsUrl(a.coordinates, from)}
@@ -204,6 +216,8 @@ export default function Recommender({
   const [cityName, setCityName] = useState<string | null>(null);
   const city = cities.find((c) => c.name === cityName);
   const start = useStartLocation();
+  // Average ratings for the cards, loaded once for the whole list.
+  const ratings = useRatingSummaries();
   // First-time visitors get a hint pointing at the starting point, until they pick one or close it.
   const firstVisit = useFirstVisit();
   const [hintClosed, setHintClosed] = useState(false);
@@ -606,7 +620,7 @@ export default function Recommender({
 
         <div className="mt-5 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visible.map((a) => (
-            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onOpen={openDetail} onFeature={feature} />
+            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onOpen={openDetail} onFeature={feature} rating={ratings?.[a.id]} />
           ))}
           {results.length === 0 && <p className="col-span-full py-10 text-center text-muted">{resultsText(0, !!city, t)}</p>}
         </div>

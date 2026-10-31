@@ -17,6 +17,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Not for Next's own files or anything with a file extension (photos, favicon).
-  matcher: ["/((?!_next/|.*\\..*).*)"],
+  // Not for Next's own files, the API (/api/reviews…) or anything with a file extension (photos, favicon).
+  matcher: ["/((?!_next/|api/|.*\\..*).*)"],
 };

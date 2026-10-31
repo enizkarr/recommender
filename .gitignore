@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# the SQLite database with visitors' reviews (back it up; never commit it)
+/data/
