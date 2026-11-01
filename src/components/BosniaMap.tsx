@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { bosniaBorder } from "@/data/bosniaBorder";
 import { bosniaRoads } from "@/data/bosniaRoads";
 import Landmark from "@/components/Landmark";
@@ -93,17 +93,21 @@ function labelPosition(label: City["label"], r: number): { dx: number; dy: numbe
 
 /**
  * Country, roads, border and cities. Drawn once for the full map and again for the zoomed box;
- * `unit` shrinks text and dots in the zoomed box, and strokes keep their width on screen.
+ * `unit` shrinks badges and names when the map is shown enlarged, so they keep a readable size
+ * on screen, and strokes keep their width on screen.
  */
 function MapLayers({
   clipId,
   unit,
+  showNames,
   selectedCity,
   onHoverCity,
   onSelectCity,
 }: {
   clipId: string;
   unit: number;
+  /** City names next to the badges; the desktop's zoomed box leaves them out, its heading names the city. */
+  showNames: boolean;
   selectedCity: string | null;
   onHoverCity: (name: string | null) => void;
   onSelectCity: (name: string) => void;
@@ -170,18 +174,16 @@ function MapLayers({
                 <Landmark icon={c.icon} />
               </g>
             </g>
-            {/* Names only on the full map: the zoomed box already names the city in its heading,
-                and a label there would sit on top of the activity dots. */}
-            {unit === 1 && (
+            {showNames && (
               // The light stroke behind the text keeps names readable on top of roads.
               <text
-                x={x + dx}
-                y={cy + dy}
+                x={x + dx * unit}
+                y={cy + dy * unit}
                 textAnchor={anchor}
-                fontSize={c.capital ? 30 : 24}
+                fontSize={(c.capital ? 30 : 24) * unit}
                 fontWeight={c.capital ? 600 : 500}
                 className="stroke-surface"
-                strokeWidth={6}
+                strokeWidth={6 * unit}
                 strokeLinejoin="round"
                 paintOrder="stroke"
               >
@@ -260,16 +262,94 @@ function CityTooltip({ city, selected, x, y }: { city: City; selected: boolean; 
   );
 }
 
-/** A soft blue map of Bosnia and Herzegovina with main roads, big cities, a dot for every activity and a movable magnifier. */
+// Phones: the map is too small for the magnifier, so instead the whole map can be zoomed and moved.
+const PHONE_QUERY = "(max-width: 639px)";
+const MAX_ZOOM = 4;
+const MIN_VIEW_W = VIEW_WIDTH / MAX_ZOOM;
+/** While zooming in, badges grow until they are about this big on screen, then keep that size. */
+const BADGE_SCREEN_PX = 15;
+const DOUBLE_TAP_MS = 300;
+/** A finger that moves further than this is dragging the map, not tapping a dot or a town. */
+const TAP_SLOP_PX = 8;
+
+/** The part of the map that is shown, in map units; its height follows from the map's proportions. */
+interface View {
+  x: number;
+  y: number;
+  w: number;
+}
+
+const FULL_VIEW: View = { x: 0, y: 0, w: VIEW_WIDTH };
+const viewHeight = (w: number) => (w * VIEW_HEIGHT) / VIEW_WIDTH;
+const clampWidth = (w: number) => Math.min(Math.max(w, MIN_VIEW_W), VIEW_WIDTH);
+
+function clampView({ x, y, w }: View): View {
+  const width = clampWidth(w);
+  return {
+    x: Math.min(Math.max(x, 0), VIEW_WIDTH - width),
+    y: Math.min(Math.max(y, 0), VIEW_HEIGHT - viewHeight(width)),
+    w: width,
+  };
+}
+
+function subscribePhone(onChange: () => void) {
+  const query = window.matchMedia(PHONE_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+/** True on phone-sized screens; false on the server, so the first render matches the larger layout. */
+function useIsPhone(): boolean {
+  return useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => false);
+}
+
+function ZoomButton({ label, onClick, children }: { label: string; onClick: () => void; children: string }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="grid size-10 place-items-center rounded-full bg-surface text-xl font-medium text-ink shadow-soft transition active:scale-95"
+    >
+      {children}
+    </button>
+  );
+}
+
+/**
+ * A soft blue map of Bosnia and Herzegovina with main roads, big cities and a dot for every activity.
+ * Larger screens get a movable magnifier; on phones the whole map zooms (pinch, double tap or buttons)
+ * and moves with a finger.
+ */
 export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover, selectedCity, onSelectCity }: Props) {
   const t = useT();
   const clipId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
+  const phone = useIsPhone();
   const [lens, setLens] = useState<Lens>({ x: lensStartX, y: lensStartY });
   const drag = useRef<{ pointerX: number; pointerY: number; lens: Lens } | null>(null);
   // City whose badge the pointer is over, and whether that is in the zoomed box.
   const [hoveredCity, setHoveredCity] = useState<{ name: string; inset: boolean } | null>(null);
   const hovered = hoveredCity && cities.find((c) => c.name === hoveredCity.name);
+
+  // Phones: which part of the map is shown, and how wide the map is on screen.
+  const [zoomView, setZoomView] = useState<View>(FULL_VIEW);
+  const [mapWidth, setMapWidth] = useState(0);
+  const view = phone ? zoomView : FULL_VIEW;
+  const viewH = viewHeight(view.w);
+  const zoomed = phone && zoomView.w < VIEW_WIDTH - 0.5;
+  // Badges and names keep a readable size on screen as the map is enlarged.
+  const unit = phone && mapWidth ? Math.min(1, (BADGE_SCREEN_PX * view.w) / (mapWidth * BADGE_RADIUS)) : 1;
+  /** Position of a map point as fractions (0–1) of the shown area. */
+  const place = ([x, y]: [number, number]): [number, number] => [(x - view.x) / view.w, (y - view.y) / viewH];
+
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setMapWidth(entry.contentRect.width));
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const dotProps = (a: Activity) => ({
     activity: a,
@@ -312,84 +392,217 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
     setLens(clampLens({ x: lens.x + delta[0], y: lens.y + delta[1] }));
   }
 
+  // --- Phone gestures: pinch to zoom, drag to move, double tap to zoom in. ---
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const gesture = useRef({ moved: 0, lastTap: { at: 0, x: 0, y: 0 } });
+  // Set once a finger has dragged, so lifting it does not also "tap" the dot or town underneath.
+  const suppressClick = useRef(false);
+
+  /**
+   * Zooms by `factor`, keeping the spot of the map that was under `from` (screen coordinates)
+   * under `to`, so pinching also moves the map with the fingers.
+   */
+  function zoomAround(current: View, factor: number, from: { x: number; y: number }, to = from): View {
+    const rect = mapRef.current!.getBoundingClientRect();
+    const mapX = current.x + ((from.x - rect.left) / rect.width) * current.w;
+    const mapY = current.y + ((from.y - rect.top) / rect.height) * viewHeight(current.w);
+    const w = clampWidth(current.w / factor);
+    return clampView({
+      x: mapX - ((to.x - rect.left) / rect.width) * w,
+      y: mapY - ((to.y - rect.top) / rect.height) * viewHeight(w),
+      w,
+    });
+  }
+
+  function zoomBy(factor: number) {
+    setZoomView((v) => {
+      const w = clampWidth(v.w / factor);
+      const centerX = v.x + v.w / 2;
+      const centerY = v.y + viewHeight(v.w) / 2;
+      return clampView({ x: centerX - w / 2, y: centerY - viewHeight(w) / 2, w });
+    });
+  }
+
+  function pointerDown(e: React.PointerEvent) {
+    if (!phone) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 1) {
+      gesture.current.moved = 0;
+      suppressClick.current = false;
+    }
+  }
+
+  function pointerMove(e: React.PointerEvent) {
+    const previous = pointers.current.get(e.pointerId);
+    if (!phone || !previous) return;
+    const next = { x: e.clientX, y: e.clientY };
+    const others = [...pointers.current].filter(([id]) => id !== e.pointerId).map(([, p]) => p);
+    pointers.current.set(e.pointerId, next);
+    gesture.current.moved += Math.hypot(next.x - previous.x, next.y - previous.y);
+    if (gesture.current.moved > TAP_SLOP_PX) suppressClick.current = true;
+
+    if (others.length === 1) {
+      // Two fingers: zoom by how much they spread, around the point between them.
+      const other = others[0];
+      const before = Math.hypot(previous.x - other.x, previous.y - other.y);
+      const after = Math.hypot(next.x - other.x, next.y - other.y);
+      if (before < 1) return;
+      const mid = (p: { x: number; y: number }) => ({ x: (p.x + other.x) / 2, y: (p.y + other.y) / 2 });
+      setZoomView((v) => zoomAround(v, after / before, mid(previous), mid(next)));
+    } else if (others.length === 0 && zoomed) {
+      // One finger on an enlarged map: move it. (Fully zoomed out, one finger scrolls the page instead.)
+      const rect = mapRef.current!.getBoundingClientRect();
+      setZoomView((v) =>
+        clampView({
+          x: v.x - ((next.x - previous.x) / rect.width) * v.w,
+          y: v.y - ((next.y - previous.y) / rect.height) * viewHeight(v.w),
+          w: v.w,
+        }),
+      );
+    }
+  }
+
+  function pointerEnd(e: React.PointerEvent) {
+    if (!pointers.current.delete(e.pointerId) || !phone) return;
+    if (e.type !== "pointerup" || pointers.current.size > 0 || gesture.current.moved > TAP_SLOP_PX) return;
+    // A second tap close to the first one: zoom in there, or back out when already fully zoomed in.
+    const last = gesture.current.lastTap;
+    if (e.timeStamp - last.at < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) {
+      const at = { x: e.clientX, y: e.clientY };
+      setZoomView((v) => (v.w <= MIN_VIEW_W + 0.5 ? FULL_VIEW : zoomAround(v, 2, at)));
+      gesture.current.lastTap = { at: 0, x: 0, y: 0 };
+    } else {
+      gesture.current.lastTap = { at: e.timeStamp, x: e.clientX, y: e.clientY };
+    }
+  }
+
   return (
-    <div ref={mapRef} className="relative">
-      <svg viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} className="block h-auto w-full drop-shadow-xl" aria-hidden>
-        <MapLayers
-          clipId={`${clipId}-map`}
-          unit={1}
-          selectedCity={selectedCity}
-          onSelectCity={onSelectCity}
-          onHoverCity={(name) => setHoveredCity(name ? { name, inset: false } : null)}
-        />
-      </svg>
-
-      {hovered &&
-        !hoveredCity.inset &&
-        (() => {
-          const { x, cy, r } = badge(hovered, 1);
-          return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={x / VIEW_WIDTH} y={(cy - r - 4) / VIEW_HEIGHT} />;
-        })()}
-
-      {positioned
-        .filter(({ at }) => !inLens(lens, at))
-        .map(({ a, at: [x, y] }) => (
-          <Dot key={a.id} {...dotProps(a)} x={x / VIEW_WIDTH} y={y / VIEW_HEIGHT} />
-        ))}
-
-      {/* The magnifier frame: drag it (or focus it and use the arrow keys) to choose what the box shows. */}
-      <button
-        type="button"
-        aria-label={t.map.lensLabel(cityInLens?.name)}
-        onPointerDown={startDrag}
-        onPointerMove={moveDrag}
-        onPointerUp={() => (drag.current = null)}
-        onPointerCancel={() => (drag.current = null)}
-        onKeyDown={moveWithKeys}
-        className="absolute z-20 cursor-grab touch-none rounded border-[2.5px] border-dashed border-accent bg-accent/10 outline-none focus-visible:ring-2 focus-visible:ring-accent active:cursor-grabbing"
-        style={{
-          left: `${(lens.x / VIEW_WIDTH) * 100}%`,
-          top: `${(lens.y / VIEW_HEIGHT) * 100}%`,
-          width: `${(LENS_W / VIEW_WIDTH) * 100}%`,
-          height: `${(LENS_H / VIEW_HEIGHT) * 100}%`,
-        }}
-      />
-
+    <div className="relative">
       <div
-        className="absolute bottom-[3%] left-0 rounded-2xl border-[6px] border-rim bg-surface p-2 shadow-soft"
-        style={{ width: `${INSET_WIDTH * 100}%` }}
+        ref={mapRef}
+        className={phone ? "relative overflow-hidden rounded-2xl" : "relative"}
+        // Fully zoomed out, a vertical swipe still scrolls the page; once enlarged, the map takes every gesture.
+        style={phone ? { touchAction: zoomed ? "none" : "pan-y" } : undefined}
+        onPointerDown={pointerDown}
+        onPointerMove={pointerMove}
+        onPointerUp={pointerEnd}
+        onPointerCancel={pointerEnd}
+        onClickCapture={(e) => {
+          if (!suppressClick.current) return;
+          suppressClick.current = false;
+          e.stopPropagation();
+          e.preventDefault();
+        }}
       >
-        <p className="mb-1 flex items-baseline justify-between gap-2 text-xs font-semibold tracking-wider text-accent uppercase">
-          <span>{cityInLens ? cityInLens.name : t.map.lens}</span>
-          <span className="font-normal tracking-normal text-muted normal-case">{t.map.lensHelp}</span>
-        </p>
-        <div className="relative overflow-hidden rounded-md bg-page" style={{ aspectRatio: LENS_W / LENS_H }}>
-          <svg
-            viewBox={`${lens.x} ${lens.y} ${LENS_W} ${LENS_H}`}
-            className="absolute inset-0 block h-full w-full"
-            aria-hidden
-          >
-            <MapLayers
-              clipId={`${clipId}-inset`}
-              unit={INSET_UNIT}
-              selectedCity={selectedCity}
-              onSelectCity={onSelectCity}
-              onHoverCity={(name) => setHoveredCity(name ? { name, inset: true } : null)}
+        <svg viewBox={`${view.x} ${view.y} ${view.w} ${viewH}`} className="block h-auto w-full drop-shadow-xl" style={{ aspectRatio: VIEW_WIDTH / VIEW_HEIGHT }} aria-hidden>
+          <MapLayers
+            clipId={`${clipId}-map`}
+            unit={unit}
+            showNames
+            selectedCity={selectedCity}
+            onSelectCity={onSelectCity}
+            onHoverCity={(name) => setHoveredCity(name ? { name, inset: false } : null)}
+          />
+        </svg>
+
+        {hovered &&
+          !hoveredCity.inset &&
+          (() => {
+            const { x, cy, r } = badge(hovered, unit);
+            const [left, top] = place([x, cy - r - 4 * unit]);
+            return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={left} y={top} />;
+          })()}
+
+        {positioned
+          .filter(({ at }) => (phone ? true : !inLens(lens, at)))
+          .map(({ a, at }) => {
+            const [x, y] = place(at);
+            // Dots outside the shown part of an enlarged map are left out.
+            if (x < -0.02 || x > 1.02 || y < -0.02 || y > 1.02) return null;
+            return <Dot key={a.id} {...dotProps(a)} x={x} y={y} />;
+          })}
+
+        {!phone && (
+          <>
+            {/* The magnifier frame: drag it (or focus it and use the arrow keys) to choose what the box shows. */}
+            <button
+              type="button"
+              aria-label={t.map.lensLabel(cityInLens?.name)}
+              onPointerDown={startDrag}
+              onPointerMove={moveDrag}
+              onPointerUp={() => (drag.current = null)}
+              onPointerCancel={() => (drag.current = null)}
+              onKeyDown={moveWithKeys}
+              className="absolute z-20 cursor-grab touch-none rounded border-[2.5px] border-dashed border-accent bg-accent/10 outline-none focus-visible:ring-2 focus-visible:ring-accent active:cursor-grabbing"
+              style={{
+                left: `${(lens.x / VIEW_WIDTH) * 100}%`,
+                top: `${(lens.y / VIEW_HEIGHT) * 100}%`,
+                width: `${(LENS_W / VIEW_WIDTH) * 100}%`,
+                height: `${(LENS_H / VIEW_HEIGHT) * 100}%`,
+              }}
             />
-          </svg>
-          {hovered &&
-            hoveredCity.inset &&
-            (() => {
-              const { x, cy, r } = badge(hovered, INSET_UNIT);
-              return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={(x - lens.x) / LENS_W} y={(cy - r - 4 * INSET_UNIT - lens.y) / LENS_H} />;
-            })()}
-          {positioned
-            .filter(({ at }) => inLens(lens, at))
-            .map(({ a, at: [x, y] }) => (
-              <Dot key={a.id} {...dotProps(a)} x={(x - lens.x) / LENS_W} y={(y - lens.y) / LENS_H} />
-            ))}
-        </div>
+
+            <div
+              className="absolute bottom-[3%] left-0 rounded-2xl border-[6px] border-rim bg-surface p-2 shadow-soft"
+              style={{ width: `${INSET_WIDTH * 100}%` }}
+            >
+              <p className="mb-1 flex items-baseline justify-between gap-2 text-xs font-semibold tracking-wider text-accent uppercase">
+                <span>{cityInLens ? cityInLens.name : t.map.lens}</span>
+                <span className="font-normal tracking-normal text-muted normal-case">{t.map.lensHelp}</span>
+              </p>
+              <div className="relative overflow-hidden rounded-md bg-page" style={{ aspectRatio: LENS_W / LENS_H }}>
+                <svg
+                  viewBox={`${lens.x} ${lens.y} ${LENS_W} ${LENS_H}`}
+                  className="absolute inset-0 block h-full w-full"
+                  aria-hidden
+                >
+                  <MapLayers
+                    clipId={`${clipId}-inset`}
+                    unit={INSET_UNIT}
+                    showNames={false}
+                    selectedCity={selectedCity}
+                    onSelectCity={onSelectCity}
+                    onHoverCity={(name) => setHoveredCity(name ? { name, inset: true } : null)}
+                  />
+                </svg>
+                {hovered &&
+                  hoveredCity.inset &&
+                  (() => {
+                    const { x, cy, r } = badge(hovered, INSET_UNIT);
+                    return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={(x - lens.x) / LENS_W} y={(cy - r - 4 * INSET_UNIT - lens.y) / LENS_H} />;
+                  })()}
+                {positioned
+                  .filter(({ at }) => inLens(lens, at))
+                  .map(({ a, at: [x, y] }) => (
+                    <Dot key={a.id} {...dotProps(a)} x={(x - lens.x) / LENS_W} y={(y - lens.y) / LENS_H} />
+                  ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Outside the gesture area, so tapping the buttons quickly is not taken for a double tap on the map. */}
+      {phone && (
+        <>
+          {!zoomed && (
+            <p className="pointer-events-none mt-2 text-center text-xs text-muted">{t.map.pinchHint}</p>
+          )}
+          <div className="absolute top-2 right-2 z-40 flex flex-col gap-2">
+            <ZoomButton label={t.map.zoomIn} onClick={() => zoomBy(2)}>
+              +
+            </ZoomButton>
+            <ZoomButton label={t.map.zoomOut} onClick={() => zoomBy(0.5)}>
+              −
+            </ZoomButton>
+            {zoomed && (
+              <ZoomButton label={t.map.zoomReset} onClick={() => setZoomView(FULL_VIEW)}>
+                ⤢
+              </ZoomButton>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

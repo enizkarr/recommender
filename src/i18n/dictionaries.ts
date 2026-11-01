@@ -136,6 +136,11 @@ const bs = {
     lensLabel: (city: string | undefined) => `Okvir za uvećani prikaz${city ? `, kod: ${city}` : ""} – pomjeri ga mišem ili strelicama`,
     lens: "Uvećani prikaz",
     lensHelp: "pomjeri okvir na mapi",
+    /** Phones: the map can be pinched, dragged and zoomed with buttons instead of the magnifier. */
+    pinchHint: "Raširi prste ili dvaput dodirni za uvećanje",
+    zoomIn: "Uvećaj mapu",
+    zoomOut: "Smanji mapu",
+    zoomReset: "Prikaži cijelu mapu",
     /** Landmarks next to the city badges, by their Bosnian name; Bosnian needs none. */
     landmarks: {} as Record<string, string>,
   },
@@ -408,6 +413,10 @@ const en: Dict = {
     lensLabel: (city) => `Magnifier frame${city ? `, near: ${city}` : ""} – move it with the mouse or the arrow keys`,
     lens: "Magnified view",
     lensHelp: "move the frame on the map",
+    pinchHint: "Pinch or double-tap to zoom in",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    zoomReset: "Show the whole map",
     landmarks: {
       "Tvrđava Kastel": "Kastel Fortress",
       "Panonska jezera": "Pannonian Lakes",
