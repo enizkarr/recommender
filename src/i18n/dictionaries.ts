@@ -152,6 +152,7 @@ const bs = {
     cityShowNear: "Klikni za aktivnosti u blizini",
     /** Phones: the map can be pinched, dragged and zoomed with buttons instead of the magnifier. */
     pinchHint: "Raširi prste ili dvaput dodirni za uvećanje",
+    zoomHint: "Za uvećanje: kotačić miša, dvoklik ili dugme +. Kad je uvećana, mapu pomjeri povlačenjem.",
     zoomIn: "Uvećaj mapu",
     zoomOut: "Smanji mapu",
     zoomReset: "Prikaži cijelu mapu",
@@ -440,6 +441,7 @@ const en: Dict = {
     cityShowAll: "Click for all activities",
     cityShowNear: "Click for activities nearby",
     pinchHint: "Pinch or double-tap to zoom in",
+    zoomHint: "To zoom in: mouse wheel, double-click or the + button. Once zoomed in, drag to move the map.",
     zoomIn: "Zoom in",
     zoomOut: "Zoom out",
     zoomReset: "Show the whole map",

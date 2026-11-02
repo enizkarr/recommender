@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { bosniaBorder } from "@/data/bosniaBorder";
 import { bosniaRoads } from "@/data/bosniaRoads";
 import Landmark from "@/components/Landmark";
@@ -229,12 +229,14 @@ function CityTooltip({ city, selected, x, y }: { city: City; selected: boolean; 
   );
 }
 
-// Phones: the map is small, so the whole map can be zoomed and moved.
-const PHONE_QUERY = "(max-width: 639px)";
-const MAX_ZOOM = 4;
+// The whole map can be zoomed and moved. Places around Sarajevo are close together, so it zooms far.
+const MAX_ZOOM = 8;
 const MIN_VIEW_W = VIEW_WIDTH / MAX_ZOOM;
-/** While zooming in, badges grow until they are about this big on screen, then keep that size. */
+/** On a small map, badges grow while zooming in until they are about this big on screen. */
 const BADGE_SCREEN_PX = 15;
+/** How much the mouse wheel or a trackpad pinch zooms; large steps are capped so a wheel notch stays gentle. */
+const WHEEL_ZOOM_SPEED = 0.01;
+const MAX_WHEEL_STEP = 50;
 const DOUBLE_TAP_MS = 300;
 /** A finger that moves further than this is dragging the map, not tapping a dot or a town. */
 const TAP_SLOP_PX = 8;
@@ -259,15 +261,54 @@ function clampView({ x, y, w }: View): View {
   };
 }
 
-function subscribePhone(onChange: () => void) {
-  const query = window.matchMedia(PHONE_QUERY);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
+// Dots closer than this on screen are nudged apart, so each one can be clicked.
+const MIN_DOT_GAP_PX = 18;
+const SPREAD_PASSES = 30;
+const GOLDEN_ANGLE = 2.4;
+
+/**
+ * Pushes points closer than `minGap` apart, a little at a time. Some places share a spot or are
+ * metres apart, so no amount of zoom would separate them. As the map is enlarged the gap shrinks
+ * in map units, and the dots settle back on their true positions.
+ */
+function spreadApart(points: [number, number][], minGap: number): [number, number][] {
+  const spread = points.map(([x, y]): [number, number] => [x, y]);
+  for (let pass = 0; pass < SPREAD_PASSES; pass++) {
+    let moved = false;
+    for (let i = 0; i < spread.length; i++) {
+      for (let j = i + 1; j < spread.length; j++) {
+        const dx = spread[j][0] - spread[i][0];
+        const dy = spread[j][1] - spread[i][1];
+        const distance = Math.hypot(dx, dy);
+        if (distance >= minGap) continue;
+        moved = true;
+        // Dots on exactly the same spot have no direction yet: each gets its own, always the same one.
+        const angle = distance > 0 ? Math.atan2(dy, dx) : i * GOLDEN_ANGLE;
+        const push = (minGap - distance) / 2;
+        spread[i][0] -= Math.cos(angle) * push;
+        spread[i][1] -= Math.sin(angle) * push;
+        spread[j][0] += Math.cos(angle) * push;
+        spread[j][1] += Math.sin(angle) * push;
+      }
+    }
+    if (!moved) break;
+  }
+  return spread;
 }
 
-/** True on phone-sized screens; false on the server, so the first render matches the larger layout. */
-function useIsPhone(): boolean {
-  return useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE_QUERY).matches, () => false);
+/**
+ * Zooms by `factor`, keeping the spot of the map that was under `from` (screen coordinates)
+ * under `to`, so pinching also moves the map with the fingers.
+ */
+function zoomAround(rect: DOMRect, current: View, factor: number, from: { x: number; y: number }, to = from): View {
+  const mapX = current.x + ((from.x - rect.left) / rect.width) * current.w;
+  const mapY = current.y + ((from.y - rect.top) / rect.height) * viewHeight(current.w);
+  const w = clampWidth(current.w / factor);
+  return clampView({
+    x: mapX - ((to.x - rect.left) / rect.width) * w,
+    y: mapY - ((to.y - rect.top) / rect.height) * viewHeight(w),
+    w,
+  });
 }
 
 function ZoomButton({ label, onClick, children }: { label: string; onClick: () => void; children: string }) {
@@ -285,25 +326,24 @@ function ZoomButton({ label, onClick, children }: { label: string; onClick: () =
 
 /**
  * A soft blue map of Bosnia and Herzegovina with main roads, big cities and a dot for every activity.
- * On phones the whole map zooms (pinch, double tap or buttons) and moves with a finger.
+ * It zooms with a pinch, a double tap or click, the mouse wheel or the buttons, and moves by dragging.
  */
 export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover, selectedCity, onSelectCity }: Props) {
   const t = useT();
   const clipId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
-  const phone = useIsPhone();
   // City whose badge the pointer is over.
   const [hoveredCity, setHoveredCity] = useState<string | null>(null);
   const hovered = cities.find((c) => c.name === hoveredCity);
 
-  // Phones: which part of the map is shown, and how wide the map is on screen.
-  const [zoomView, setZoomView] = useState<View>(FULL_VIEW);
+  // Which part of the map is shown, and how wide the map is on screen.
+  const [view, setView] = useState<View>(FULL_VIEW);
   const [mapWidth, setMapWidth] = useState(0);
-  const view = phone ? zoomView : FULL_VIEW;
   const viewH = viewHeight(view.w);
-  const zoomed = phone && zoomView.w < VIEW_WIDTH - 0.5;
-  // Badges and names keep a readable size on screen as the map is enlarged.
-  const unit = phone && mapWidth ? Math.min(1, (BADGE_SCREEN_PX * view.w) / (mapWidth * BADGE_RADIUS)) : 1;
+  const zoomed = view.w < VIEW_WIDTH - 0.5;
+  // Badges and names keep the size they have on the full map as it is enlarged; on a small map they first grow to a readable size.
+  const badgeScreenPx = Math.max(BADGE_SCREEN_PX, (BADGE_RADIUS * mapWidth) / VIEW_WIDTH);
+  const unit = mapWidth ? Math.min(1, (badgeScreenPx * view.w) / (mapWidth * BADGE_RADIUS)) : 1;
   /** Position of a map point as fractions (0–1) of the shown area. */
   const place = ([x, y]: [number, number]): [number, number] => [(x - view.x) / view.w, (y - view.y) / viewH];
 
@@ -315,6 +355,25 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
     return () => observer.disconnect();
   }, []);
 
+  // The mouse wheel zooms. Once the map cannot zoom further that way the page scrolls instead, so
+  // nobody gets stuck on it. Added by hand because React's own wheel listener is not allowed to
+  // stop the page scrolling, or the browser zooming the whole page on Ctrl + scroll or a trackpad pinch.
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const pixels = e.deltaMode === WheelEvent.DOM_DELTA_LINE ? e.deltaY * 16 : e.deltaY;
+      const atLimit = pixels > 0 ? view.w >= VIEW_WIDTH - 0.5 : view.w <= MIN_VIEW_W + 0.5;
+      if (atLimit && !e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const step = Math.max(-MAX_WHEEL_STEP, Math.min(MAX_WHEEL_STEP, pixels));
+      const at = { x: e.clientX, y: e.clientY };
+      setView((v) => zoomAround(el.getBoundingClientRect(), v, Math.exp(-step * WHEEL_ZOOM_SPEED), at));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [view.w]);
+
   const dotProps = (a: Activity) => ({
     activity: a,
     highlighted: highlightedIds.includes(a.id),
@@ -322,32 +381,21 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
     onSelect,
     onHover,
   });
-  const positioned = activities.map((a) => ({ a, at: project(a.coordinates[1], a.coordinates[0]) }));
+  // Depends on the zoom but not on where the map has been dragged, so dots do not move while dragging.
+  const dotPositions = useMemo(() => {
+    const points = activities.map((a) => project(a.coordinates[1], a.coordinates[0]));
+    return mapWidth ? spreadApart(points, (MIN_DOT_GAP_PX * view.w) / mapWidth) : points;
+  }, [activities, view.w, mapWidth]);
+  const positioned = activities.map((a, i) => ({ a, at: dotPositions[i] }));
 
-  // --- Phone gestures: pinch to zoom, drag to move, double tap to zoom in. ---
+  // --- Gestures: pinch to zoom, drag to move, double tap or click to zoom in. ---
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const gesture = useRef({ moved: 0, lastTap: { at: 0, x: 0, y: 0 } });
-  // Set once a finger has dragged, so lifting it does not also "tap" the dot or town underneath.
+  // Set once the pointer has dragged, so lifting it does not also "tap" the dot or town underneath.
   const suppressClick = useRef(false);
 
-  /**
-   * Zooms by `factor`, keeping the spot of the map that was under `from` (screen coordinates)
-   * under `to`, so pinching also moves the map with the fingers.
-   */
-  function zoomAround(current: View, factor: number, from: { x: number; y: number }, to = from): View {
-    const rect = mapRef.current!.getBoundingClientRect();
-    const mapX = current.x + ((from.x - rect.left) / rect.width) * current.w;
-    const mapY = current.y + ((from.y - rect.top) / rect.height) * viewHeight(current.w);
-    const w = clampWidth(current.w / factor);
-    return clampView({
-      x: mapX - ((to.x - rect.left) / rect.width) * w,
-      y: mapY - ((to.y - rect.top) / rect.height) * viewHeight(w),
-      w,
-    });
-  }
-
   function zoomBy(factor: number) {
-    setZoomView((v) => {
+    setView((v) => {
       const w = clampWidth(v.w / factor);
       const centerX = v.x + v.w / 2;
       const centerY = v.y + viewHeight(v.w) / 2;
@@ -356,7 +404,7 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
   }
 
   function pointerDown(e: React.PointerEvent) {
-    if (!phone) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 1) {
       gesture.current.moved = 0;
@@ -366,7 +414,12 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
 
   function pointerMove(e: React.PointerEvent) {
     const previous = pointers.current.get(e.pointerId);
-    if (!phone || !previous) return;
+    if (!previous) return;
+    // The mouse button was let go outside the map: that drag is over.
+    if (e.pointerType === "mouse" && e.buttons === 0) {
+      pointers.current.delete(e.pointerId);
+      return;
+    }
     const next = { x: e.clientX, y: e.clientY };
     const others = [...pointers.current].filter(([id]) => id !== e.pointerId).map(([, p]) => p);
     pointers.current.set(e.pointerId, next);
@@ -380,11 +433,11 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
       const after = Math.hypot(next.x - other.x, next.y - other.y);
       if (before < 1) return;
       const mid = (p: { x: number; y: number }) => ({ x: (p.x + other.x) / 2, y: (p.y + other.y) / 2 });
-      setZoomView((v) => zoomAround(v, after / before, mid(previous), mid(next)));
+      setView((v) => zoomAround(mapRef.current!.getBoundingClientRect(), v, after / before, mid(previous), mid(next)));
     } else if (others.length === 0 && zoomed) {
-      // One finger on an enlarged map: move it. (Fully zoomed out, one finger scrolls the page instead.)
+      // One finger or the mouse on an enlarged map: move it. (Fully zoomed out, one finger scrolls the page instead.)
       const rect = mapRef.current!.getBoundingClientRect();
-      setZoomView((v) =>
+      setView((v) =>
         clampView({
           x: v.x - ((next.x - previous.x) / rect.width) * v.w,
           y: v.y - ((next.y - previous.y) / rect.height) * viewHeight(v.w),
@@ -395,13 +448,13 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
   }
 
   function pointerEnd(e: React.PointerEvent) {
-    if (!pointers.current.delete(e.pointerId) || !phone) return;
+    if (!pointers.current.delete(e.pointerId)) return;
     if (e.type !== "pointerup" || pointers.current.size > 0 || gesture.current.moved > TAP_SLOP_PX) return;
     // A second tap close to the first one: zoom in there, or back out when already fully zoomed in.
     const last = gesture.current.lastTap;
     if (e.timeStamp - last.at < DOUBLE_TAP_MS && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 30) {
       const at = { x: e.clientX, y: e.clientY };
-      setZoomView((v) => (v.w <= MIN_VIEW_W + 0.5 ? FULL_VIEW : zoomAround(v, 2, at)));
+      setView((v) => (v.w <= MIN_VIEW_W + 0.5 ? FULL_VIEW : zoomAround(mapRef.current!.getBoundingClientRect(), v, 2, at)));
       gesture.current.lastTap = { at: 0, x: 0, y: 0 };
     } else {
       gesture.current.lastTap = { at: e.timeStamp, x: e.clientX, y: e.clientY };
@@ -412,9 +465,9 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
     <div className="relative">
       <div
         ref={mapRef}
-        className={phone ? "relative overflow-hidden rounded-2xl" : "relative"}
+        className={`relative overflow-hidden rounded-2xl select-none ${zoomed ? "cursor-grab active:cursor-grabbing" : ""}`}
         // Fully zoomed out, a vertical swipe still scrolls the page; once enlarged, the map takes every gesture.
-        style={phone ? { touchAction: zoomed ? "none" : "pan-y" } : undefined}
+        style={{ touchAction: zoomed ? "none" : "pan-y" }}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerEnd}
@@ -452,26 +505,24 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
       </div>
 
       {/* Outside the gesture area, so tapping the buttons quickly is not taken for a double tap on the map. */}
-      {phone && (
-        <>
-          {!zoomed && (
-            <p className="pointer-events-none mt-2 text-center text-xs text-muted">{t.map.pinchHint}</p>
-          )}
-          <div className="absolute top-2 right-2 z-40 flex flex-col gap-2">
-            <ZoomButton label={t.map.zoomIn} onClick={() => zoomBy(2)}>
-              +
-            </ZoomButton>
-            <ZoomButton label={t.map.zoomOut} onClick={() => zoomBy(0.5)}>
-              −
-            </ZoomButton>
-            {zoomed && (
-              <ZoomButton label={t.map.zoomReset} onClick={() => setZoomView(FULL_VIEW)}>
-                ⤢
-              </ZoomButton>
-            )}
-          </div>
-        </>
-      )}
+      {/* Hidden rather than removed when zoomed: a shorter page would make the map jump under the pointer. */}
+      <p className={`pointer-events-none mt-2 text-center text-xs text-muted ${zoomed ? "invisible" : ""}`}>
+        <span className="pointer-coarse:hidden">{t.map.zoomHint}</span>
+        <span className="hidden pointer-coarse:inline">{t.map.pinchHint}</span>
+      </p>
+      <div className="absolute top-2 right-2 z-40 flex flex-col gap-2">
+        <ZoomButton label={t.map.zoomIn} onClick={() => zoomBy(2)}>
+          +
+        </ZoomButton>
+        <ZoomButton label={t.map.zoomOut} onClick={() => zoomBy(0.5)}>
+          −
+        </ZoomButton>
+        {zoomed && (
+          <ZoomButton label={t.map.zoomReset} onClick={() => setView(FULL_VIEW)}>
+            ⤢
+          </ZoomButton>
+        )}
+      </div>
     </div>
   );
 }
