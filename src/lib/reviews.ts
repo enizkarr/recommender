@@ -1,5 +1,6 @@
 import "server-only";
 import { getDb } from "@/lib/db";
+import type { RatingTotal } from "@/lib/ranking";
 import type { PublicReview, RatingSummary } from "@/lib/reviewLimits";
 
 // Reading and changing stored reviews. Only server code imports this; the admin page uses it
@@ -67,6 +68,14 @@ export function ratingSummaries(): Record<string, RatingSummary> {
     .prepare("SELECT activity_id AS activityId, avg(rating) AS average, count(*) AS count FROM reviews WHERE status = 'approved' GROUP BY activity_id")
     .all() as { activityId: string; average: number; count: number }[];
   return Object.fromEntries(rows.map((r) => [r.activityId, { average: Math.round(r.average * 10) / 10, count: r.count }]));
+}
+
+/** Sum of the ratings and number of approved reviews, unrounded, for ranking every activity that has any. */
+export function ratingTotals(): Record<string, RatingTotal> {
+  const rows = getDb()
+    .prepare("SELECT activity_id AS activityId, sum(rating) AS sum, count(*) AS count FROM reviews WHERE status = 'approved' GROUP BY activity_id")
+    .all() as { activityId: string; sum: number; count: number }[];
+  return Object.fromEntries(rows.map((r) => [r.activityId, { sum: r.sum, count: r.count }]));
 }
 
 /** The latest approved reviews of one activity, with only the fields the public may see. */

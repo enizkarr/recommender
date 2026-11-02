@@ -16,17 +16,18 @@ import StartLocationPicker from "@/components/StartLocationPicker";
 import WeatherWidget, { isRainy } from "@/components/WeatherWidget";
 import WeekendPlanner from "@/components/WeekendPlanner";
 import { cities } from "@/data/cities";
-import type { Dict } from "@/i18n/dictionaries";
-import { useActivities, useT } from "@/i18n/LangProvider";
+import { topPath, type Dict } from "@/i18n/dictionaries";
+import { useActivities, useLang, useT } from "@/i18n/LangProvider";
 import { addFavourites, useFavourites } from "@/lib/favourites";
-import { ACTIVITY_PARAM, noFilters, pageQuery, SHARED_PARAM } from "@/lib/filtersUrl";
+import { noFilters, pageQuery, SHARED_PARAM } from "@/lib/filtersUrl";
 import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
-import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
-import { directionsUrl, formatDrive, tripKm, useDrives, type Trip } from "@/lib/driving";
+import { distanceKm, isNear, NEAR_CITY_KM, nearbyActivities, recommend } from "@/lib/recommend";
+import { directionsUrl, formatDrive, tripKm, tripTo, useDrives, type Trip } from "@/lib/driving";
 import { useRatingSummaries } from "@/lib/publicReviews";
 import { shareLink } from "@/lib/share";
 import type { RatingSummary } from "@/lib/reviewLimits";
 import { useStartLocation } from "@/lib/startLocation";
+import { useOpenActivity } from "@/lib/useOpenActivity";
 import type { Activity, Preferences } from "@/lib/types";
 
 /** How long the hero waits for the weather before picking as on a dry day. */
@@ -217,6 +218,7 @@ export default function Recommender({
   initialSharedIds?: string[] | null;
 }) {
   const t = useT();
+  const lang = useLang();
   const activities = useActivities();
   // Filters apply straight away; they are also kept in the address bar so the page can be shared.
   const [prefs, setPrefsState] = useState<Preferences>(initialPrefs ?? noFilters);
@@ -242,13 +244,7 @@ export default function Recommender({
   // straight-line distance stands in, so sorting and the kilometre limit still work.
   const kmFromStart = (a: Activity) => (start ? (drives?.[a.id]?.km ?? distanceKm(start.coordinates, a.coordinates)) : undefined);
   /** What the cards show; nothing while the road distances are still loading. */
-  const tripFor = (a: Activity): Trip | undefined => {
-    if (!start) return undefined;
-    const drive = drives?.[a.id];
-    if (drive) return drive;
-    if (drives || routingFailed) return { km: distanceKm(start.coordinates, a.coordinates), straight: true };
-    return undefined;
-  };
+  const tripFor = (a: Activity): Trip | undefined => tripTo(a, start?.coordinates, drives, routingFailed);
 
   const folded = fold(query.trim());
   const matching = (p: Preferences) => {
@@ -327,51 +323,9 @@ export default function Recommender({
     setTimeout(() => setShareNote(null), 2500);
   }
 
-  // The activity whose details are open. Opening adds a history entry (?aktivnost=…), so the
-  // browser's or phone's back button closes the popup and a copied link opens it again.
-  const [openId, setOpenId] = useState<string | null>(initialActivityId);
-  const pushedEntry = useRef(false);
+  // The activity whose details are open; its id is kept in the address along with the filters.
+  const { openId, openDetail, closeDetail } = useOpenActivity(initialActivityId, activities, (id) => pageUrl(prefs, id, sharedIds));
   const openActivity = activities.find((a) => a.id === openId);
-
-  useEffect(() => {
-    const onBack = () => {
-      const id = new URLSearchParams(window.location.search).get(ACTIVITY_PARAM);
-      pushedEntry.current = false;
-      setOpenId(activities.some((a) => a.id === id) ? id : null);
-    };
-    window.addEventListener("popstate", onBack);
-    return () => window.removeEventListener("popstate", onBack);
-  }, [activities]);
-
-  function openDetail(id: string) {
-    // Switching to another activity inside the popup replaces the entry instead of adding one.
-    if (openId) {
-      window.history.replaceState(null, "", pageUrl(prefs, id, sharedIds));
-    } else {
-      window.history.pushState(null, "", pageUrl(prefs, id, sharedIds));
-      pushedEntry.current = true;
-    }
-    setOpenId(id);
-  }
-
-  function closeDetail() {
-    if (pushedEntry.current) {
-      // Going back removes the entry we added; the popstate listener then closes the popup.
-      window.history.back();
-      return;
-    }
-    // Opened straight from a shared link: there is no entry of ours to go back to.
-    window.history.replaceState(null, "", pageUrl(prefs, null, sharedIds));
-    setOpenId(null);
-  }
-
-  /** Up to three other activities near the one whose details are open, nearest first. */
-  const nearby = openActivity
-    ? activities
-        .filter((a) => a.id !== openActivity.id && isNear(a, openActivity.coordinates))
-        .sort((x, y) => distanceKm(x.coordinates, openActivity.coordinates) - distanceKm(y.coordinates, openActivity.coordinates))
-        .slice(0, 3)
-    : [];
 
   function toggle<K extends keyof Preferences>(key: K, value: Preferences[K]) {
     setPrefs({ ...prefs, [key]: prefs[key] === value ? "any" : value });
@@ -729,7 +683,7 @@ export default function Recommender({
           activity={openActivity}
           trip={tripFor(openActivity)}
           start={start}
-          nearby={nearby}
+          nearby={nearbyActivities(openActivity, activities)}
           onSelect={openDetail}
           onClose={closeDetail}
         />
@@ -788,13 +742,21 @@ export default function Recommender({
 
         <div className="grid content-start gap-[18px]">
           <ul className="m-0 grid list-none grid-cols-2 gap-3.5 p-0 sm:grid-cols-4" aria-label={t.comingSoon.label}>
-            <ComingSoonTile label={t.comingSoon.top}>
-              {/* A star above a winners' podium */}
-              <rect x={6} y={26} width={9} height={10} rx={1.5} fill="#c99a5b" />
-              <rect x={15.5} y={20} width={9} height={16} rx={1.5} className="fill-accent" />
-              <rect x={25} y={29} width={9} height={7} rx={1.5} fill="#c99a5b" />
-              <path d="M20 4 21.76 8.57 26.66 8.84 22.85 11.93 24.11 16.66 20 14 15.89 16.66 17.15 11.93 13.34 8.84 18.24 8.57Z" className="fill-sun" stroke="#14305a" strokeWidth={1} strokeLinejoin="round" />
-            </ComingSoonTile>
+            <li className="grid">
+              <a
+                href={topPath[lang]}
+                className="grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card transition hover:-translate-y-0.5"
+              >
+                {/* A star above a winners' podium */}
+                <svg viewBox="0 0 40 40" className="size-9" aria-hidden>
+                  <rect x={6} y={26} width={9} height={10} rx={1.5} fill="#c99a5b" />
+                  <rect x={15.5} y={20} width={9} height={16} rx={1.5} className="fill-accent" />
+                  <rect x={25} y={29} width={9} height={7} rx={1.5} fill="#c99a5b" />
+                  <path d="M20 4 21.76 8.57 26.66 8.84 22.85 11.93 24.11 16.66 20 14 15.89 16.66 17.15 11.93 13.34 8.84 18.24 8.57Z" className="fill-sun" stroke="#14305a" strokeWidth={1} strokeLinejoin="round" />
+                </svg>
+                {t.top.title}
+              </a>
+            </li>
             <ComingSoonTile label={t.comingSoon.propose}>
               {/* A map pin with a plus: add a new place */}
               <path d="M20 3a11 11 0 0 0-11 11c0 8 11 22 11 22s11-14 11-22A11 11 0 0 0 20 3z" className="fill-accent" />

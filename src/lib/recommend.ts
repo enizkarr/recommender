@@ -44,3 +44,11 @@ export function distanceKm([lat1, lon1]: [number, number], [lat2, lon2]: [number
 export function isNear(activity: Activity, coordinates: [number, number]): boolean {
   return distanceKm(activity.coordinates, coordinates) <= NEAR_CITY_KM;
 }
+
+/** Up to three other activities near this one, nearest first. */
+export function nearbyActivities(activity: Activity, activities: Activity[]): Activity[] {
+  return activities
+    .filter((a) => a.id !== activity.id && isNear(a, activity.coordinates))
+    .sort((x, y) => distanceKm(x.coordinates, activity.coordinates) - distanceKm(y.coordinates, activity.coordinates))
+    .slice(0, 3);
+}

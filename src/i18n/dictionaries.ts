@@ -11,6 +11,7 @@ export const langNames: Record<Lang, string> = { bs: "Bosanski", en: "English" }
 
 /** Where each language lives: Bosnian at the root, English under /en. */
 export const homePath: Record<Lang, string> = { bs: "/", en: "/en" };
+export const topPath: Record<Lang, string> = { bs: "/top", en: "/en/top" };
 
 /** Bosnian plural forms: 1 aktivnost, 2–4 aktivnosti, 5+ aktivnosti (11–14 take the last form). */
 function bsPlural(count: number, one: string, few: string, many: string): string {
@@ -33,6 +34,7 @@ const bs = {
     home: "Početna",
     explore: "Istraži",
     map: "Mapa",
+    top: "Top",
     reviews: "Recenzije",
     language: "Jezik",
   },
@@ -116,9 +118,20 @@ const bs = {
   },
   comingSoon: {
     label: "Još na Family Time",
-    top: "Top destinacije",
     propose: "Predloži destinaciju",
     compare: "Poredi destinacije",
+  },
+  top: {
+    title: "Top destinacije",
+    intro: "Mjesta koja porodice najbolje ocjenjuju.",
+    rule: (min: number) => `Mjesto dobija rang nakon ${min} recenzije.`,
+    rank: (rank: number) => `${rank}. mjesto`,
+    rankedLabel: "Poredak destinacija",
+    shared: (rank: number) => `Dijele ${rank}. mjesto`,
+    sharedNote: (min: number) => `Ova mjesta još nemaju ${min} recenzije. Otvori jedno i napiši svoju.`,
+    noneRanked: (min: number) => `Još nijedno mjesto nema ${min} recenzije.`,
+    noRating: "Još bez ocjena",
+    loading: "Učitavam poredak…",
   },
   favourites: {
     title: "Moji favoriti",
@@ -327,6 +340,7 @@ const en: Dict = {
     home: "Home",
     explore: "Explore",
     map: "Map",
+    top: "Top",
     reviews: "Reviews",
     language: "Language",
   },
@@ -408,9 +422,20 @@ const en: Dict = {
   },
   comingSoon: {
     label: "More on Family Time",
-    top: "Top destinations",
     propose: "Suggest a destination",
     compare: "Compare destinations",
+  },
+  top: {
+    title: "Top destinations",
+    intro: "The places families rate highest.",
+    rule: (min) => `A place gets a rank after ${min} reviews.`,
+    rank: (rank) => `Place ${rank}`,
+    rankedLabel: "Destination ranking",
+    shared: (rank) => `Sharing place ${rank}`,
+    sharedNote: (min) => `These places have fewer than ${min} reviews so far. Open one and add yours.`,
+    noneRanked: (min) => `No place has ${min} reviews yet.`,
+    noRating: "Not rated yet",
+    loading: "Loading the ranking…",
   },
   favourites: {
     title: "My favourites",

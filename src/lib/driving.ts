@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Dict } from "@/i18n/dictionaries";
+import { distanceKm } from "./recommend";
 import { formatKm } from "./startLocation";
 import type { Activity } from "./types";
 
@@ -82,6 +83,15 @@ export function useDrives(from: [number, number] | undefined, activities: Activi
 
   const current = loaded && loaded.key === key ? loaded : null;
   return { drives: current?.drives ?? null, failed: !!current && !current.drives };
+}
+
+/** What to show for one activity: the drive once known, the straight line if the router failed, nothing while loading. */
+export function tripTo(activity: Activity, from: [number, number] | undefined, drives: Drives | null, failed: boolean): Trip | undefined {
+  if (!from) return undefined;
+  const drive = drives?.[activity.id];
+  if (drive) return drive;
+  if (drives || failed) return { km: distanceKm(from, activity.coordinates), straight: true };
+  return undefined;
 }
 
 /**
