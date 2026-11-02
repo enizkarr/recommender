@@ -37,33 +37,6 @@ function toPath(points: [number, number][]): string {
 const outline = toPath(bosniaBorder) + "Z";
 const roads = bosniaRoads.map((r) => toPath(r.points));
 
-// The magnifier frame: a fixed-size area that can be dragged around the map and is shown
-// zoomed in the box in the bottom-left corner. It starts over Sarajevo, where most activities are.
-const INSET_WIDTH = 0.36; // the zoomed box's width as a share of the map's width
-const [lensStartX, lensStartY] = project(18.22, 43.9);
-const [lensEndX, lensEndY] = project(18.47, 43.8);
-const LENS_W = lensEndX - lensStartX;
-const LENS_H = lensEndY - lensStartY;
-// Text and dots in the zoomed box are scaled down by this much so they keep their normal on-screen size.
-const INSET_UNIT = LENS_W / (INSET_WIDTH * VIEW_WIDTH);
-const LENS_STEP = 8; // map units moved per arrow-key press
-
-interface Lens {
-  x: number;
-  y: number;
-}
-
-function clampLens({ x, y }: Lens): Lens {
-  return {
-    x: Math.min(Math.max(x, 0), VIEW_WIDTH - LENS_W),
-    y: Math.min(Math.max(y, 0), VIEW_HEIGHT - LENS_H),
-  };
-}
-
-function inLens(lens: Lens, [x, y]: [number, number]): boolean {
-  return x >= lens.x && x <= lens.x + LENS_W && y >= lens.y && y <= lens.y + LENS_H;
-}
-
 // City badges are little map pins: a light circle with the landmark, whose tip touches the city.
 const BADGE_RADIUS = 24;
 const CAPITAL_BADGE_RADIUS = 28;
@@ -92,22 +65,18 @@ function labelPosition(label: City["label"], r: number): { dx: number; dy: numbe
 }
 
 /**
- * Country, roads, border and cities. Drawn once for the full map and again for the zoomed box;
- * `unit` shrinks badges and names when the map is shown enlarged, so they keep a readable size
- * on screen, and strokes keep their width on screen.
+ * Country, roads, border and cities. `unit` shrinks badges and names when the map is shown
+ * enlarged, so they keep a readable size on screen, and strokes keep their width on screen.
  */
 function MapLayers({
   clipId,
   unit,
-  showNames,
   selectedCity,
   onHoverCity,
   onSelectCity,
 }: {
   clipId: string;
   unit: number;
-  /** City names next to the badges; the desktop's zoomed box leaves them out, its heading names the city. */
-  showNames: boolean;
   selectedCity: string | null;
   onHoverCity: (name: string | null) => void;
   onSelectCity: (name: string) => void;
@@ -174,22 +143,20 @@ function MapLayers({
                 <Landmark icon={c.icon} />
               </g>
             </g>
-            {showNames && (
-              // The light stroke behind the text keeps names readable on top of roads.
-              <text
-                x={x + dx * unit}
-                y={cy + dy * unit}
-                textAnchor={anchor}
-                fontSize={(c.capital ? 30 : 24) * unit}
-                fontWeight={c.capital ? 600 : 500}
-                className="stroke-surface"
-                strokeWidth={6 * unit}
-                strokeLinejoin="round"
-                paintOrder="stroke"
-              >
-                {c.name}
-              </text>
-            )}
+            {/* The light stroke behind the text keeps names readable on top of roads. */}
+            <text
+              x={x + dx * unit}
+              y={cy + dy * unit}
+              textAnchor={anchor}
+              fontSize={(c.capital ? 30 : 24) * unit}
+              fontWeight={c.capital ? 600 : 500}
+              className="stroke-surface"
+              strokeWidth={6 * unit}
+              strokeLinejoin="round"
+              paintOrder="stroke"
+            >
+              {c.name}
+            </text>
           </g>
         );
       })}
@@ -262,7 +229,7 @@ function CityTooltip({ city, selected, x, y }: { city: City; selected: boolean; 
   );
 }
 
-// Phones: the map is too small for the magnifier, so instead the whole map can be zoomed and moved.
+// Phones: the map is small, so the whole map can be zoomed and moved.
 const PHONE_QUERY = "(max-width: 639px)";
 const MAX_ZOOM = 4;
 const MIN_VIEW_W = VIEW_WIDTH / MAX_ZOOM;
@@ -318,19 +285,16 @@ function ZoomButton({ label, onClick, children }: { label: string; onClick: () =
 
 /**
  * A soft blue map of Bosnia and Herzegovina with main roads, big cities and a dot for every activity.
- * Larger screens get a movable magnifier; on phones the whole map zooms (pinch, double tap or buttons)
- * and moves with a finger.
+ * On phones the whole map zooms (pinch, double tap or buttons) and moves with a finger.
  */
 export default function BosniaMap({ activities, highlightedIds, activeId, onSelect, onHover, selectedCity, onSelectCity }: Props) {
   const t = useT();
   const clipId = useId();
   const mapRef = useRef<HTMLDivElement>(null);
   const phone = useIsPhone();
-  const [lens, setLens] = useState<Lens>({ x: lensStartX, y: lensStartY });
-  const drag = useRef<{ pointerX: number; pointerY: number; lens: Lens } | null>(null);
-  // City whose badge the pointer is over, and whether that is in the zoomed box.
-  const [hoveredCity, setHoveredCity] = useState<{ name: string; inset: boolean } | null>(null);
-  const hovered = hoveredCity && cities.find((c) => c.name === hoveredCity.name);
+  // City whose badge the pointer is over.
+  const [hoveredCity, setHoveredCity] = useState<string | null>(null);
+  const hovered = cities.find((c) => c.name === hoveredCity);
 
   // Phones: which part of the map is shown, and how wide the map is on screen.
   const [zoomView, setZoomView] = useState<View>(FULL_VIEW);
@@ -359,38 +323,6 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
     onHover,
   });
   const positioned = activities.map((a) => ({ a, at: project(a.coordinates[1], a.coordinates[0]) }));
-  // Name the zoomed box after a city inside the frame, if there is one.
-  const cityInLens = cities.find((c) => inLens(lens, project(c.coordinates[1], c.coordinates[0])));
-
-  function startDrag(e: React.PointerEvent<HTMLButtonElement>) {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    drag.current = { pointerX: e.clientX, pointerY: e.clientY, lens };
-  }
-
-  function moveDrag(e: React.PointerEvent<HTMLButtonElement>) {
-    const map = mapRef.current;
-    if (!drag.current || !map) return;
-    const unitsPerPixel = VIEW_WIDTH / map.getBoundingClientRect().width;
-    setLens(
-      clampLens({
-        x: drag.current.lens.x + (e.clientX - drag.current.pointerX) * unitsPerPixel,
-        y: drag.current.lens.y + (e.clientY - drag.current.pointerY) * unitsPerPixel,
-      }),
-    );
-  }
-
-  function moveWithKeys(e: React.KeyboardEvent<HTMLButtonElement>) {
-    const step: Record<string, [number, number]> = {
-      ArrowLeft: [-LENS_STEP, 0],
-      ArrowRight: [LENS_STEP, 0],
-      ArrowUp: [0, -LENS_STEP],
-      ArrowDown: [0, LENS_STEP],
-    };
-    const delta = step[e.key];
-    if (!delta) return;
-    e.preventDefault();
-    setLens(clampLens({ x: lens.x + delta[0], y: lens.y + delta[1] }));
-  }
 
   // --- Phone gestures: pinch to zoom, drag to move, double tap to zoom in. ---
   const pointers = useRef(new Map<number, { x: number; y: number }>());
@@ -496,90 +428,27 @@ export default function BosniaMap({ activities, highlightedIds, activeId, onSele
       >
         <svg viewBox={`${view.x} ${view.y} ${view.w} ${viewH}`} className="block h-auto w-full drop-shadow-xl" style={{ aspectRatio: VIEW_WIDTH / VIEW_HEIGHT }} aria-hidden>
           <MapLayers
-            clipId={`${clipId}-map`}
+            clipId={clipId}
             unit={unit}
-            showNames
             selectedCity={selectedCity}
             onSelectCity={onSelectCity}
-            onHoverCity={(name) => setHoveredCity(name ? { name, inset: false } : null)}
+            onHoverCity={setHoveredCity}
           />
         </svg>
 
         {hovered &&
-          !hoveredCity.inset &&
           (() => {
             const { x, cy, r } = badge(hovered, unit);
             const [left, top] = place([x, cy - r - 4 * unit]);
             return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={left} y={top} />;
           })()}
 
-        {positioned
-          .filter(({ at }) => (phone ? true : !inLens(lens, at)))
-          .map(({ a, at }) => {
-            const [x, y] = place(at);
-            // Dots outside the shown part of an enlarged map are left out.
-            if (x < -0.02 || x > 1.02 || y < -0.02 || y > 1.02) return null;
-            return <Dot key={a.id} {...dotProps(a)} x={x} y={y} />;
-          })}
-
-        {!phone && (
-          <>
-            {/* The magnifier frame: drag it (or focus it and use the arrow keys) to choose what the box shows. */}
-            <button
-              type="button"
-              aria-label={t.map.lensLabel(cityInLens?.name)}
-              onPointerDown={startDrag}
-              onPointerMove={moveDrag}
-              onPointerUp={() => (drag.current = null)}
-              onPointerCancel={() => (drag.current = null)}
-              onKeyDown={moveWithKeys}
-              className="absolute z-20 cursor-grab touch-none rounded border-[2.5px] border-dashed border-accent bg-accent/10 outline-none focus-visible:ring-2 focus-visible:ring-accent active:cursor-grabbing"
-              style={{
-                left: `${(lens.x / VIEW_WIDTH) * 100}%`,
-                top: `${(lens.y / VIEW_HEIGHT) * 100}%`,
-                width: `${(LENS_W / VIEW_WIDTH) * 100}%`,
-                height: `${(LENS_H / VIEW_HEIGHT) * 100}%`,
-              }}
-            />
-
-            <div
-              className="absolute bottom-[3%] left-0 rounded-2xl border-[6px] border-rim bg-surface p-2 shadow-soft"
-              style={{ width: `${INSET_WIDTH * 100}%` }}
-            >
-              <p className="mb-1 flex items-baseline justify-between gap-2 text-xs font-semibold tracking-wider text-accent uppercase">
-                <span>{cityInLens ? cityInLens.name : t.map.lens}</span>
-                <span className="font-normal tracking-normal text-muted normal-case">{t.map.lensHelp}</span>
-              </p>
-              <div className="relative overflow-hidden rounded-md bg-page" style={{ aspectRatio: LENS_W / LENS_H }}>
-                <svg
-                  viewBox={`${lens.x} ${lens.y} ${LENS_W} ${LENS_H}`}
-                  className="absolute inset-0 block h-full w-full"
-                  aria-hidden
-                >
-                  <MapLayers
-                    clipId={`${clipId}-inset`}
-                    unit={INSET_UNIT}
-                    showNames={false}
-                    selectedCity={selectedCity}
-                    onSelectCity={onSelectCity}
-                    onHoverCity={(name) => setHoveredCity(name ? { name, inset: true } : null)}
-                  />
-                </svg>
-                {hovered &&
-                  hoveredCity.inset &&
-                  (() => {
-                    const { x, cy, r } = badge(hovered, INSET_UNIT);
-                    return <CityTooltip city={hovered} selected={hovered.name === selectedCity} x={(x - lens.x) / LENS_W} y={(cy - r - 4 * INSET_UNIT - lens.y) / LENS_H} />;
-                  })()}
-                {positioned
-                  .filter(({ at }) => inLens(lens, at))
-                  .map(({ a, at: [x, y] }) => (
-                    <Dot key={a.id} {...dotProps(a)} x={(x - lens.x) / LENS_W} y={(y - lens.y) / LENS_H} />
-                  ))}
-              </div>
-            </div>
-          </>
-        )}
+        {positioned.map(({ a, at }) => {
+          const [x, y] = place(at);
+          // Dots outside the shown part of an enlarged map are left out.
+          if (x < -0.02 || x > 1.02 || y < -0.02 || y > 1.02) return null;
+          return <Dot key={a.id} {...dotProps(a)} x={x} y={y} />;
+        })}
       </div>
 
       {/* Outside the gesture area, so tapping the buttons quickly is not taken for a double tap on the map. */}
