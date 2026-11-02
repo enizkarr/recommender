@@ -6,6 +6,7 @@ import { flushSync } from "react-dom";
 import ActivityDetail from "@/components/ActivityDetail";
 import BosniaMap from "@/components/BosniaMap";
 import DirectionsLink from "@/components/DirectionsLink";
+import FavouriteButton from "@/components/FavouriteButton";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
 import LanguageSwitch from "@/components/LanguageSwitch";
 import MapTeaser from "@/components/MapTeaser";
@@ -17,11 +18,13 @@ import WeekendPlanner from "@/components/WeekendPlanner";
 import { cities } from "@/data/cities";
 import type { Dict } from "@/i18n/dictionaries";
 import { useActivities, useT } from "@/i18n/LangProvider";
-import { ACTIVITY_PARAM, noFilters, pageQuery } from "@/lib/filtersUrl";
+import { addFavourites, useFavourites } from "@/lib/favourites";
+import { ACTIVITY_PARAM, noFilters, pageQuery, SHARED_PARAM } from "@/lib/filtersUrl";
 import { HERO_SIZE, heroPicks, useWeekKey } from "@/lib/heroPicks";
 import { distanceKm, isNear, NEAR_CITY_KM, recommend } from "@/lib/recommend";
 import { directionsUrl, formatDrive, tripKm, useDrives, type Trip } from "@/lib/driving";
 import { useRatingSummaries } from "@/lib/publicReviews";
+import { shareLink } from "@/lib/share";
 import type { RatingSummary } from "@/lib/reviewLimits";
 import { useStartLocation } from "@/lib/startLocation";
 import type { Activity, Preferences } from "@/lib/types";
@@ -57,9 +60,9 @@ function fold(text: string): string {
   return text.toLocaleLowerCase("bs").replaceAll("đ", "dj").normalize("NFD").replace(/\p{M}/gu, "");
 }
 
-/** Address for the page with these filters and, when one is open, an activity's details. */
-function pageUrl(prefs: Preferences, activityId: string | null): string {
-  const query = pageQuery(prefs, activityId);
+/** Address for the page with these filters and, when set, an activity's details and a shared list. */
+function pageUrl(prefs: Preferences, activityId: string | null, sharedIds: string[] | null): string {
+  const query = pageQuery(prefs, activityId, sharedIds);
   return query ? `?${query}` : window.location.pathname;
 }
 
@@ -126,6 +129,7 @@ function PlaceCard({ a, active, trip, from, onHover, onFeature, onOpen, rating }
       <div className="relative aspect-[4/3] overflow-hidden rounded-[18px]">
         <Photo a={a} sizes="(min-width: 1080px) 18rem, (min-width: 640px) 45vw, 90vw" />
       </div>
+      <FavouriteButton id={a.id} title={a.title} className="absolute top-4 right-4 z-10" />
       <div className="flex items-center justify-between gap-2 px-2 pt-3.5">
         <div className="min-w-0">
           <h3 className="font-medium">
@@ -198,13 +202,19 @@ function ComingSoonTile({ label, children }: { label: string; children: ReactNod
   );
 }
 
+/** Which activities the list shows: the filtered ones, the saved ones, or a list someone shared. */
+type ListView = "all" | "favourites" | "shared";
+
 export default function Recommender({
   initialPrefs,
   initialActivityId = null,
+  initialSharedIds = null,
 }: {
   initialPrefs: Preferences | null;
   /** Activity whose details a shared link (?aktivnost=…) opens. */
   initialActivityId?: string | null;
+  /** Activities of a shared favourites list (?favoriti=…). */
+  initialSharedIds?: string[] | null;
 }) {
   const t = useT();
   const activities = useActivities();
@@ -222,7 +232,8 @@ export default function Recommender({
   const firstVisit = useFirstVisit();
   const [hintClosed, setHintClosed] = useState(false);
   const startCard = useRef<HTMLDivElement>(null);
-  const showStartHint = firstVisit && !hintClosed && !start;
+  // Someone opening a shared list came to see that list, so the hint does not cover it.
+  const showStartHint = firstVisit && !hintClosed && !start && !initialSharedIds;
   useEffect(() => {
     if (firstVisit && start) markStartHintSeen();
   }, [firstVisit, start]);
@@ -248,8 +259,22 @@ export default function Recommender({
     return start ? list.sort((x, y) => kmFromStart(x)! - kmFromStart(y)!) : list;
   };
   const results = matching(prefs);
+
+  const [listView, setListView] = useState<ListView>(initialSharedIds ? "shared" : "all");
+  const savedIds = useFavourites();
+  const sharedIds = listView === "shared" ? initialSharedIds : null;
+  /** The activities with these ids, in that order, or nearest first with a starting point. Filters do not apply. */
+  const pickedList = (ids: string[]) => {
+    const list = ids.flatMap((id) => activities.find((a) => a.id === id) ?? []);
+    return start ? list.sort((x, y) => kmFromStart(x)! - kmFromStart(y)!) : list;
+  };
+  // Most recently saved first. Saved ids of activities no longer on the site are skipped.
+  const saved = pickedList([...savedIds].reverse());
+  const listed = listView === "favourites" ? saved : sharedIds ? pickedList(sharedIds) : results;
   const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? results : results.slice(0, FIRST_CARDS);
+  const visible = showAll ? listed : listed.slice(0, FIRST_CARDS);
+  const allSharedSaved = !!sharedIds && sharedIds.every((id) => savedIds.includes(id));
+  const [shareNote, setShareNote] = useState<string | null>(null);
 
   // The hero offers this week's picks, or indoor ones when it rains. It waits for the week (known
   // only in the browser) and briefly for the weather, so it does not swap picks right after loading.
@@ -278,7 +303,28 @@ export default function Recommender({
 
   function setPrefs(next: Preferences) {
     setPrefsState(next);
-    window.history.replaceState(null, "", pageUrl(next, openId));
+    window.history.replaceState(null, "", pageUrl(next, openId, sharedIds));
+  }
+
+  function showList(next: ListView) {
+    setListView(next);
+    setShowAll(false);
+    // Only a list someone shared belongs in the address; "Moji favoriti" means nothing on another device.
+    window.history.replaceState(null, "", pageUrl(prefs, openId, next === "shared" ? sharedIds : null));
+  }
+
+  /** "Moji favoriti": shows the saved places, or the full list again on a second click. */
+  function toggleFavouritesView() {
+    showList(listView === "favourites" ? "all" : "favourites");
+    document.getElementById("aktivnosti")?.scrollIntoView({ block: "start" });
+  }
+
+  async function shareFavourites() {
+    const url = `${window.location.origin}${window.location.pathname}?${SHARED_PARAM}=${saved.map((a) => a.id).join(",")}`;
+    const copied = await shareLink({ title: t.favourites.shareTitle, text: t.favourites.shareText, url });
+    if (copied === null) return;
+    setShareNote(copied ? t.detail.copied : t.detail.notCopied);
+    setTimeout(() => setShareNote(null), 2500);
   }
 
   // The activity whose details are open. Opening adds a history entry (?aktivnost=…), so the
@@ -300,9 +346,9 @@ export default function Recommender({
   function openDetail(id: string) {
     // Switching to another activity inside the popup replaces the entry instead of adding one.
     if (openId) {
-      window.history.replaceState(null, "", pageUrl(prefs, id));
+      window.history.replaceState(null, "", pageUrl(prefs, id, sharedIds));
     } else {
-      window.history.pushState(null, "", pageUrl(prefs, id));
+      window.history.pushState(null, "", pageUrl(prefs, id, sharedIds));
       pushedEntry.current = true;
     }
     setOpenId(id);
@@ -315,7 +361,7 @@ export default function Recommender({
       return;
     }
     // Opened straight from a shared link: there is no entry of ours to go back to.
-    window.history.replaceState(null, "", pageUrl(prefs, null));
+    window.history.replaceState(null, "", pageUrl(prefs, null, sharedIds));
     setOpenId(null);
   }
 
@@ -346,7 +392,7 @@ export default function Recommender({
 
   /** Brings an activity's card into view, opening the full list first if it is further down. */
   function showCard(id: string) {
-    const index = results.findIndex((a) => a.id === id);
+    const index = listed.findIndex((a) => a.id === id);
     if (index < 0) return false;
     if (index >= FIRST_CARDS && !showAll) flushSync(() => setShowAll(true));
     setActiveId(id);
@@ -381,6 +427,8 @@ export default function Recommender({
 
   /** A city badge was clicked: show only activities around it, or everything again on a second click. */
   function selectCity(name: string) {
+    // A city narrows the full list, so it leaves the favourites or a shared list.
+    if (listView !== "all") showList("all");
     setCityName(name === cityName ? null : name);
     setActiveId(null);
   }
@@ -398,6 +446,116 @@ export default function Recommender({
           ? t.hero.rainy
           : t.hero.weekly
         : t.hero.featured;
+
+  const activityList = (
+    <section id="aktivnosti" aria-labelledby="aktivnosti-naslov" className={`${card} scroll-mt-6 px-4 pt-[26px] pb-6 sm:px-6`}>
+      <div className="flex flex-wrap items-end justify-between gap-4 px-2">
+        <div>
+          <h2 id="aktivnosti-naslov" className="font-serif text-[clamp(26px,3vw,34px)] leading-tight">
+            {listView === "favourites" ? t.favourites.title : listView === "shared" ? t.favourites.sharedTitle : t.list.title}
+          </h2>
+          <p className="mt-1 text-muted" aria-live="polite">
+            {listView === "favourites" ? t.favourites.count(listed.length) : listView === "shared" ? t.favourites.sharedCount(listed.length) : resultsText(listed.length, !!city, t)}
+            {start && listed.length > 0 && t.list.nearestFirst(start.name)}
+          </p>
+        </div>
+        {listView === "all" ? (
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t.list.quickFilters}>
+            <Chip pressed={prefs.place === "any"} onClick={() => setPrefs({ ...prefs, place: "any" })}>
+              {t.list.all}
+            </Chip>
+            <Chip pressed={prefs.place === "nature"} onClick={() => toggle("place", "nature")}>
+              {t.place.nature}
+            </Chip>
+            <Chip pressed={prefs.place === "city"} onClick={() => toggle("place", "city")}>
+              {t.place.city}
+            </Chip>
+            <Chip pressed={prefs.budget === "free"} onClick={() => toggle("budget", "free")}>
+              {t.cost.free}
+            </Chip>
+            <button
+              type="button"
+              onClick={() => setFiltersOpen(true)}
+              className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-[13px] font-medium shadow-soft"
+            >
+              <SlidersIcon />
+              {t.list.filters}
+              {activeFilters > 0 && (
+                <span className="grid size-5 place-items-center rounded-full bg-ink text-[11px] text-surface">{activeFilters}</span>
+              )}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[13px] text-muted" aria-live="polite">
+              {shareNote}
+            </span>
+            {listView === "favourites" && listed.length > 0 && (
+              <Chip pressed={false} onClick={shareFavourites}>
+                {t.favourites.share}
+              </Chip>
+            )}
+            {sharedIds && (
+              <button
+                type="button"
+                disabled={allSharedSaved}
+                onClick={() => addFavourites(sharedIds)}
+                className="rounded-full bg-ink px-4 py-2 text-[13px] font-medium text-surface transition disabled:opacity-60"
+              >
+                {allSharedSaved ? t.favourites.allSaved : t.favourites.saveAll}
+              </button>
+            )}
+            <Chip pressed={false} onClick={() => showList("all")}>
+              {t.favourites.backToAll}
+            </Chip>
+          </div>
+        )}
+      </div>
+
+      {listView === "all" && anythingSet && (
+        <div className="mt-4 flex flex-wrap items-center gap-2 px-2 text-[13px]">
+          {city && (
+            <button
+              type="button"
+              onClick={() => setCityName(null)}
+              aria-label={t.list.leaveCity(city.name)}
+              className="rounded-full bg-accent/12 px-3 py-1 font-medium text-accent"
+            >
+              {t.list.nearCity(city.name)} ✕
+            </button>
+          )}
+          {folded && (
+            <button type="button" onClick={() => setQuery("")} className="rounded-full bg-accent/12 px-3 py-1 font-medium text-accent">
+              „{query.trim()}“ ✕
+            </button>
+          )}
+          <button type="button" onClick={reset} className="rounded-full px-3 py-1 font-medium text-muted hover:text-ink">
+            {t.list.resetAll}
+          </button>
+        </div>
+      )}
+
+      <div className="mt-5 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {visible.map((a) => (
+          <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onOpen={openDetail} onFeature={feature} rating={ratings?.[a.id]} />
+        ))}
+        {listed.length === 0 && (
+          <p className="col-span-full py-10 text-center text-muted">{listView === "all" ? resultsText(0, !!city, t) : t.favourites.empty}</p>
+        )}
+      </div>
+      {listed.length > FIRST_CARDS && (
+        <div className="mt-6 text-center">
+          <button
+            type="button"
+            onClick={() => setShowAll(!showAll)}
+            className="rounded-full bg-page px-6 py-2.5 text-sm font-medium shadow-[inset_0_1px_0_var(--rim),0_1px_3px_rgba(40,52,80,.08)]"
+          >
+            {showAll ? t.list.showLess : t.list.showAll(listed.length)}
+          </button>
+        </div>
+      )}
+    </section>
+  );
 
   return (
     <div className="space-y-6">
@@ -422,7 +580,11 @@ export default function Recommender({
             <input
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                // Searching looks through all activities, so it leaves the favourites or a shared list.
+                if (e.target.value && listView !== "all") showList("all");
+                setQuery(e.target.value);
+              }}
               placeholder={t.header.search}
               aria-label={t.header.searchLabel}
               className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted"
@@ -431,6 +593,9 @@ export default function Recommender({
           <LanguageSwitch />
         </div>
       </header>
+
+      {/* A shared list is what its recipient came for: it goes first, above the panels that load late. */}
+      {sharedIds && activityList}
 
       <section className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_270px]">
         {/* Featured activity: a photo inside a white rim, both cut to the same organic shape */}
@@ -557,85 +722,7 @@ export default function Recommender({
 
       <WeekendPlanner start={start} results={results} tripFor={tripFor} onOpen={openDetail} />
 
-      <section id="aktivnosti" aria-labelledby="aktivnosti-naslov" className={`${card} scroll-mt-6 px-4 pt-[26px] pb-6 sm:px-6`}>
-        <div className="flex flex-wrap items-end justify-between gap-4 px-2">
-          <div>
-            <h2 id="aktivnosti-naslov" className="font-serif text-[clamp(26px,3vw,34px)] leading-tight">
-              {t.list.title}
-            </h2>
-            <p className="mt-1 text-muted" aria-live="polite">
-              {resultsText(results.length, !!city, t)}
-              {start && results.length > 0 && t.list.nearestFirst(start.name)}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2" role="group" aria-label={t.list.quickFilters}>
-            <Chip pressed={prefs.place === "any"} onClick={() => setPrefs({ ...prefs, place: "any" })}>
-              {t.list.all}
-            </Chip>
-            <Chip pressed={prefs.place === "nature"} onClick={() => toggle("place", "nature")}>
-              {t.place.nature}
-            </Chip>
-            <Chip pressed={prefs.place === "city"} onClick={() => toggle("place", "city")}>
-              {t.place.city}
-            </Chip>
-            <Chip pressed={prefs.budget === "free"} onClick={() => toggle("budget", "free")}>
-              {t.cost.free}
-            </Chip>
-            <button
-              type="button"
-              onClick={() => setFiltersOpen(true)}
-              className="flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-[13px] font-medium shadow-soft"
-            >
-              <SlidersIcon />
-              {t.list.filters}
-              {activeFilters > 0 && (
-                <span className="grid size-5 place-items-center rounded-full bg-ink text-[11px] text-surface">{activeFilters}</span>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {anythingSet && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 px-2 text-[13px]">
-            {city && (
-              <button
-                type="button"
-                onClick={() => setCityName(null)}
-                aria-label={t.list.leaveCity(city.name)}
-                className="rounded-full bg-accent/12 px-3 py-1 font-medium text-accent"
-              >
-                {t.list.nearCity(city.name)} ✕
-              </button>
-            )}
-            {folded && (
-              <button type="button" onClick={() => setQuery("")} className="rounded-full bg-accent/12 px-3 py-1 font-medium text-accent">
-                „{query.trim()}“ ✕
-              </button>
-            )}
-            <button type="button" onClick={reset} className="rounded-full px-3 py-1 font-medium text-muted hover:text-ink">
-              {t.list.resetAll}
-            </button>
-          </div>
-        )}
-
-        <div className="mt-5 grid gap-[18px] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visible.map((a) => (
-            <PlaceCard key={a.id} a={a} active={a.id === activeId} trip={tripFor(a)} from={start?.coordinates} onHover={setActiveId} onOpen={openDetail} onFeature={feature} rating={ratings?.[a.id]} />
-          ))}
-          {results.length === 0 && <p className="col-span-full py-10 text-center text-muted">{resultsText(0, !!city, t)}</p>}
-        </div>
-        {results.length > FIRST_CARDS && (
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setShowAll(!showAll)}
-              className="rounded-full bg-page px-6 py-2.5 text-sm font-medium shadow-[inset_0_1px_0_var(--rim),0_1px_3px_rgba(40,52,80,.08)]"
-            >
-              {showAll ? t.list.showLess : t.list.showAll(results.length)}
-            </button>
-          </div>
-        )}
-      </section>
+      {!sharedIds && activityList}
 
       {openActivity && (
         <ActivityDetail
@@ -720,15 +807,28 @@ export default function Recommender({
               <path d="M6 18h7M6 21h5M27 18h7M27 21h5" stroke="white" strokeWidth={1.6} strokeLinecap="round" />
               <path d="M10 30h20m-4-3 4 3-4 3M30 36H10m4-3-4 3 4 3" fill="none" stroke="#14305a" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="dark:stroke-[#e7edf7]" />
             </ComingSoonTile>
-            <ComingSoonTile label={t.comingSoon.favourites}>
-              <path d="M20 34S5 25 5 15a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 10-15 19-15 19z" fill="#e25b5b" />
-              <path d="M12.5 13.5a4 4 0 0 1 4-3" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" opacity={0.7} />
-            </ComingSoonTile>
+            <li className="grid">
+              <button
+                type="button"
+                aria-pressed={listView === "favourites"}
+                onClick={toggleFavouritesView}
+                className={`relative grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card transition hover:-translate-y-0.5 ${listView === "favourites" ? "ring-2 ring-accent" : ""}`}
+              >
+                {saved.length > 0 && (
+                  <span className="absolute top-2 right-2 grid min-w-5 place-items-center rounded-full bg-[#e25b5b] px-1.5 py-0.5 text-[11px] font-semibold text-white">{saved.length}</span>
+                )}
+                <svg viewBox="0 0 40 40" className="size-9" aria-hidden>
+                  <path d="M20 34S5 25 5 15a8 8 0 0 1 15-4 8 8 0 0 1 15 4c0 10-15 19-15 19z" fill="#e25b5b" />
+                  <path d="M12.5 13.5a4 4 0 0 1 4-3" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" opacity={0.7} />
+                </svg>
+                {t.favourites.title}
+              </button>
+            </li>
           </ul>
 
           <div className="relative min-h-[260px] overflow-hidden rounded-[30px] border-8 border-rim bg-[linear-gradient(140deg,color-mix(in_srgb,var(--soft)_22%,var(--surface)),var(--surface)_70%)] px-[30px] py-7 shadow-card">
             <h3 className="text-[22px] font-semibold tracking-tight">{t.mapCard.title}</h3>
-            <p className="mt-1.5 max-w-[22ch] text-muted">{t.mapCard.text(results.length)}</p>
+            <p className="mt-1.5 max-w-[22ch] text-muted">{t.mapCard.text(listed.length)}</p>
             <a
               href="#mapa"
               className="relative z-10 mt-[18px] inline-flex items-center gap-2.5 rounded-full bg-surface px-5 py-2.5 text-sm font-medium shadow-soft"
@@ -738,7 +838,7 @@ export default function Recommender({
             </a>
             <div className="absolute right-2 -bottom-1.5 w-[min(62%,330px)] opacity-45 sm:opacity-100">
               <MapTeaser
-                dots={results.map((a) => a.coordinates)}
+                dots={listed.map((a) => a.coordinates)}
                 from={start ? { label: start.name, coordinates: start.coordinates } : undefined}
                 to={featured && { label: featured.title, coordinates: featured.coordinates }}
               />
@@ -757,7 +857,7 @@ export default function Recommender({
         <div className="mx-auto mt-4 max-w-[60rem]">
           <BosniaMap
             activities={activities}
-            highlightedIds={results.map((a) => a.id)}
+            highlightedIds={listed.map((a) => a.id)}
             activeId={activeId}
             onSelect={showCard}
             onHover={setActiveId}

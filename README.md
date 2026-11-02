@@ -22,4 +22,4 @@ npm run build
 ## Roadmap
 - Location-aware suggestions (maps/events APIs)
 - More filters (weather, accessibility, number of kids)
-- Saved favourites and accounts
+- Accounts, so favourites follow a family between devices

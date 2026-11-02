@@ -53,10 +53,14 @@ export function prefsFromQuery(query: Record<string, string | string[] | undefin
 /** URL parameter of the activity whose details are open, e.g. ?aktivnost=kravice. */
 export const ACTIVITY_PARAM = "aktivnost";
 
-/** Query string for the filters plus the open activity, without the leading "?". */
-export function pageQuery(prefs: Preferences, activityId: string | null): string {
+/** URL parameter of a shared favourites list, e.g. ?favoriti=kravice,jajce. */
+export const SHARED_PARAM = "favoriti";
+
+/** Query string for the filters, the open activity and a shared list, without the leading "?". */
+export function pageQuery(prefs: Preferences, activityId: string | null, sharedIds: string[] | null = null): string {
   const query = new URLSearchParams(prefsToQuery(prefs));
   if (activityId) query.set(ACTIVITY_PARAM, activityId);
+  if (sharedIds) query.set(SHARED_PARAM, sharedIds.join(","));
   return query.toString();
 }
 
@@ -64,4 +68,10 @@ export function pageQuery(prefs: Preferences, activityId: string | null): string
 export function activityFromQuery(query: Record<string, string | string[] | undefined>): string | null {
   const raw = query[ACTIVITY_PARAM];
   return (Array.isArray(raw) ? raw[0] : raw) ?? null;
+}
+
+/** The activity ids of a shared list named in the URL parameters (not yet checked against the list). */
+export function sharedFromQuery(query: Record<string, string | string[] | undefined>): string[] {
+  const raw = query[SHARED_PARAM];
+  return [...new Set(((Array.isArray(raw) ? raw[0] : raw) ?? "").split(",").filter(Boolean))];
 }

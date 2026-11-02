@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import DirectionsLink from "@/components/DirectionsLink";
+import FavouriteButton from "@/components/FavouriteButton";
 import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
 import ReviewForm from "@/components/ReviewForm";
@@ -10,6 +11,7 @@ import { useRatingSummaries } from "@/lib/publicReviews";
 import { directionsUrl, formatDrive, tripKm, type Trip } from "@/lib/driving";
 import { useT } from "@/i18n/LangProvider";
 import { ACTIVITY_PARAM } from "@/lib/filtersUrl";
+import { shareLink } from "@/lib/share";
 import type { StartLocation } from "@/lib/startLocation";
 import type { Activity } from "@/lib/types";
 
@@ -69,32 +71,10 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
     dialog.current?.scrollTo({ top: 0 });
   }, [a.id]);
 
-  /** The phone's share sheet where there is one; otherwise the link is copied. */
   async function share() {
     const url = `${window.location.origin}${window.location.pathname}?${ACTIVITY_PARAM}=${a.id}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: a.title, text: `${a.title} – ${a.location}`, url });
-      } catch {
-        // Closing the share sheet is not an error worth showing.
-      }
-      return;
-    }
-    let copied = false;
-    try {
-      await navigator.clipboard.writeText(url);
-      copied = true;
-    } catch {
-      // Older or stricter browsers: copy through a hidden text field instead.
-      const field = document.createElement("textarea");
-      field.value = url;
-      field.style.position = "fixed";
-      field.style.opacity = "0";
-      dialog.current?.append(field);
-      field.select();
-      copied = document.execCommand("copy");
-      field.remove();
-    }
+    const copied = await shareLink({ title: a.title, text: `${a.title} – ${a.location}`, url }, dialog.current ?? undefined);
+    if (copied === null) return;
     setShareNote(copied ? t.detail.copied : t.detail.notCopied);
     setTimeout(() => setShareNote(null), 2500);
   }
@@ -155,6 +135,7 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
             </svg>
             {t.directions}
           </DirectionsLink>
+          <FavouriteButton id={a.id} title={a.title} label className={pill} />
           <ActionButton onClick={share}>
             <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
               <circle cx={18} cy={5} r={2.5} />

@@ -2,7 +2,7 @@ import { Suspense, type ReactNode } from "react";
 import Recommender from "@/components/Recommender";
 import { activities } from "@/data/activities";
 import { dictionaries, isLang, type Dict } from "@/i18n/dictionaries";
-import { activityFromQuery, prefsFromQuery } from "@/lib/filtersUrl";
+import { activityFromQuery, prefsFromQuery, sharedFromQuery } from "@/lib/filtersUrl";
 
 function RailLink({ href, label, active = false, children }: { href: string; label: string; active?: boolean; children: ReactNode }) {
   return (
@@ -85,13 +85,16 @@ export default async function Home({ params, searchParams }: PageProps<"/[lang]"
       <main className="min-w-0">
         <Suspense fallback={<Recommender initialPrefs={null} />}>
           {/* A shared link like ?mjesto=priroda opens with those filters already applied,
-              and ?aktivnost=kravice with that activity's details open. */}
+              ?aktivnost=kravice with that activity's details open, and ?favoriti=kravice,jajce
+              with that shared list of favourites. */}
           {searchParams.then((query) => {
             const id = activityFromQuery(query);
+            const sharedIds = sharedFromQuery(query).filter((shared) => activities.some((a) => a.id === shared));
             return (
               <Recommender
                 initialPrefs={prefsFromQuery(query)}
                 initialActivityId={activities.some((a) => a.id === id) ? id : null}
+                initialSharedIds={sharedIds.length > 0 ? sharedIds : null}
               />
             );
           })}
