@@ -25,7 +25,7 @@ function RailSoon({ label, t, children }: { label: string; t: Dict; children: Re
 }
 
 /** Slim navigation rail: on the left on large screens, a bar across the top on smaller ones. */
-export default function Rail({ lang, active }: { lang: Lang; active: "home" | "top" }) {
+export default function Rail({ lang, active }: { lang: Lang; active?: "home" | "top" }) {
   const t = dictionaries[lang];
   // On the home page these only scroll, which keeps its filters in the address.
   const home = active === "home" ? "" : homePath[lang];

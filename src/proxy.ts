@@ -12,7 +12,9 @@ export function proxy(request: NextRequest) {
     url.pathname = pathname.slice(3) || "/";
     return NextResponse.redirect(url);
   }
-  url.pathname = `/bs${pathname === "/" ? "" : pathname}`;
+  // The credits page has a Bosnian address; the page itself sits under app/[lang]/credits.
+  const page = pathname === "/zasluge" ? "/credits" : pathname;
+  url.pathname = `/bs${page === "/" ? "" : page}`;
   return NextResponse.rewrite(url);
 }
 

@@ -5,6 +5,7 @@ import DirectionsLink from "@/components/DirectionsLink";
 import FavouriteButton from "@/components/FavouriteButton";
 import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
+import PhotoCredit from "@/components/PhotoCredit";
 import ReviewForm from "@/components/ReviewForm";
 import ReviewList from "@/components/ReviewList";
 import { useRatingSummaries } from "@/lib/publicReviews";
@@ -107,6 +108,11 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
         <div className="relative aspect-[16/9] overflow-hidden rounded-3xl">
           <Photo key={a.id} a={a} eager sizes="(min-width: 640px) 44rem, 100vw" />
         </div>
+        {a.imageCredit && (
+          <p className="mt-1.5 px-2 text-right text-xs text-muted">
+            <PhotoCredit credit={a.imageCredit} t={t} />
+          </p>
+        )}
       </div>
 
       <div className="space-y-6 px-5 pt-5 pb-8 sm:px-8">

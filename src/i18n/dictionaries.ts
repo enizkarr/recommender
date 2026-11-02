@@ -12,6 +12,7 @@ export const langNames: Record<Lang, string> = { bs: "Bosanski", en: "English" }
 /** Where each language lives: Bosnian at the root, English under /en. */
 export const homePath: Record<Lang, string> = { bs: "/", en: "/en" };
 export const topPath: Record<Lang, string> = { bs: "/top", en: "/en/top" };
+export const creditsPath: Record<Lang, string> = { bs: "/zasluge", en: "/en/credits" };
 
 /** Bosnian plural forms: 1 aktivnost, 2–4 aktivnosti, 5+ aktivnosti (11–14 take the last form). */
 function bsPlural(count: number, one: string, few: string, many: string): string {
@@ -120,6 +121,12 @@ const bs = {
     label: "Još na Family Time",
     propose: "Predloži destinaciju",
     compare: "Poredi destinacije",
+  },
+  credits: {
+    title: "Zasluge za fotografije",
+    intro: "Autori fotografija objavljenih pod slobodnim licencama. Klikni ime autora za originalnu fotografiju.",
+    changes: "Fotografije su na stranici smanjene i izrezane.",
+    photo: "Foto",
   },
   top: {
     title: "Top destinacije",
@@ -424,6 +431,12 @@ const en: Dict = {
     label: "More on Family Time",
     propose: "Suggest a destination",
     compare: "Compare destinations",
+  },
+  credits: {
+    title: "Photo credits",
+    intro: "The authors of photos published under free licences. Click an author's name for the original photo.",
+    changes: "Photos are resized and cropped on this site.",
+    photo: "Photo",
   },
   top: {
     title: "Top destinations",
