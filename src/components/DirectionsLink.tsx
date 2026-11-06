@@ -2,25 +2,12 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/i18n/LangProvider";
+import { storedValue } from "@/lib/storedValue";
 
-// Remembered in the browser once someone ticks "Ne prikazuj više".
-const STORAGE_KEY = "family-time:route-warning-off";
-
-function warningTurnedOff(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function turnWarningOff() {
-  try {
-    localStorage.setItem(STORAGE_KEY, "1");
-  } catch {
-    // Storage blocked: the warning simply shows again next time.
-  }
-}
+// Remembered in the browser once someone ticks "Ne prikazuj više" (don't show again).
+const warningOff = storedValue("family-time:route-warning-off");
+const warningTurnedOff = () => warningOff.get() === "1";
+const turnWarningOff = () => warningOff.set("1");
 
 /** Reminder that the suggested route is only a guide, shown before Google Maps opens. */
 function RouteWarning({ href, onClose }: { href: string; onClose: () => void }) {

@@ -1,42 +1,24 @@
 "use client";
 
-import { useActionState, useEffect, useState, useSyncExternalStore } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useLang, useT } from "@/i18n/LangProvider";
+import { storedValue } from "@/lib/storedValue";
 import { submitReview } from "@/lib/reviewActions";
 import { REVIEW_KIDS_MAX, REVIEW_MONTHS_BACK, REVIEW_NAME_MAX, REVIEW_TEXT_MAX, type ReviewFormState } from "@/lib/reviewLimits";
 
 // Activities this browser has already reviewed, so the form is not offered twice. The server has
 // its own limit; this is only so a family does not fill the form in again by mistake.
-const STORAGE_KEY = "family-time:reviewed";
-const listeners = new Set<() => void>();
-
-function readReviewed(): string {
-  try {
-    return localStorage.getItem(STORAGE_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
+// Activity ids, comma-separated.
+const reviewedIds = storedValue("family-time:reviewed");
 
 function markReviewed(id: string) {
-  const ids = new Set(readReviewed().split(",").filter(Boolean));
+  const ids = new Set((reviewedIds.get() ?? "").split(",").filter(Boolean));
   ids.add(id);
-  try {
-    localStorage.setItem(STORAGE_KEY, [...ids].join(","));
-  } catch {
-    // Storage blocked: the server's limit still applies.
-  }
-  listeners.forEach((l) => l());
-}
-
-function subscribe(onChange: () => void) {
-  listeners.add(onChange);
-  return () => listeners.delete(onChange);
+  reviewedIds.set([...ids].join(","));
 }
 
 function useReviewed(id: string): boolean {
-  const raw = useSyncExternalStore(subscribe, readReviewed, () => "");
-  return raw.split(",").includes(id);
+  return (reviewedIds.useValue() ?? "").split(",").includes(id);
 }
 
 /** "2026-10" for a date, as <input type="month"> uses it. */

@@ -1,33 +1,18 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useState, type RefObject } from "react";
 import { useT } from "@/i18n/LangProvider";
+import { storedValue } from "@/lib/storedValue";
 
 // Remembered in the browser once the hint has been closed, so it only greets first-time visitors.
-const STORAGE_KEY = "family-time:start-hint-seen";
+// Counted as seen on the server, and when storage is blocked: better to skip the hint than to show it on every visit.
+const seen = storedValue("family-time:start-hint-seen", "1");
 
-function hintSeen(): boolean {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    // Storage blocked: better to skip the hint than to show it on every visit.
-    return true;
-  }
-}
-
-export function markStartHintSeen() {
-  try {
-    localStorage.setItem(STORAGE_KEY, "1");
-  } catch {
-    // Storage blocked: nothing to remember.
-  }
-}
-
-const noSubscription = () => () => {};
+export const markStartHintSeen = () => seen.set("1");
 
 /** True for a visitor who has never closed the hint; false on the server. */
 export function useFirstVisit(): boolean {
-  return useSyncExternalStore(noSubscription, () => !hintSeen(), () => false);
+  return seen.useValue() !== "1";
 }
 
 interface Hole {

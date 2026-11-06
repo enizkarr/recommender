@@ -231,10 +231,9 @@ export default function Recommender({
   const ratings = useRatingSummaries();
   // First-time visitors get a hint pointing at the starting point, until they pick one or close it.
   const firstVisit = useFirstVisit();
-  const [hintClosed, setHintClosed] = useState(false);
   const startCard = useRef<HTMLDivElement>(null);
   // Someone opening a shared list came to see that list, so the hint does not cover it.
-  const showStartHint = firstVisit && !hintClosed && !start && !initialSharedIds;
+  const showStartHint = firstVisit && !start && !initialSharedIds;
   useEffect(() => {
     if (firstVisit && start) markStartHintSeen();
   }, [firstVisit, start]);
@@ -666,10 +665,7 @@ export default function Recommender({
       {showStartHint && (
         <StartHint
           target={startCard}
-          onClose={() => {
-            markStartHintSeen();
-            setHintClosed(true);
-          }}
+          onClose={markStartHintSeen}
         />
       )}
 

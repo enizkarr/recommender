@@ -1,7 +1,8 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 import { cities } from "@/data/cities";
 import type { Dict } from "@/i18n/dictionaries";
 import { distanceKm } from "./recommend";
+import { storedValue } from "./storedValue";
 
 /** Where the family sets out from: a picked town, or the browser's location named after the nearest town. */
 export interface StartLocation {
@@ -92,38 +93,8 @@ export function formatKm(km: number, t: Dict): string {
   return `~${km < 100 ? Math.round(km) : Math.round(km / 5) * 5} km`;
 }
 
-// Kept in localStorage so the choice survives a reload. The in-memory copy also covers
-// browsers where storage is blocked (the choice then lasts until the page is closed).
-const STORAGE_KEY = "family-time:start";
-const listeners = new Set<() => void>();
-let current: string | null | undefined;
-
-function readStored(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function subscribe(onChange: () => void) {
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== STORAGE_KEY) return;
-    current = e.newValue;
-    onChange();
-  };
-  listeners.add(onChange);
-  window.addEventListener("storage", onStorage);
-  return () => {
-    listeners.delete(onChange);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-function getSnapshot() {
-  if (current === undefined) current = readStored();
-  return current;
-}
+// The chosen starting point, as JSON in the browser.
+const stored = storedValue("family-time:start");
 
 function parse(raw: string | null): StartLocation | null {
   if (!raw) return null;
@@ -137,18 +108,11 @@ function parse(raw: string | null): StartLocation | null {
 }
 
 export function saveStartLocation(location: StartLocation | null) {
-  current = location ? JSON.stringify(location) : null;
-  try {
-    if (current) localStorage.setItem(STORAGE_KEY, current);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Storage blocked: keep the in-memory copy only.
-  }
-  listeners.forEach((l) => l());
+  stored.set(location ? JSON.stringify(location) : null);
 }
 
 /** The saved starting point; null on the server and until one is chosen. */
 export function useStartLocation(): StartLocation | null {
-  const raw = useSyncExternalStore(subscribe, getSnapshot, () => null);
+  const raw = stored.useValue();
   return useMemo(() => parse(raw), [raw]);
 }
