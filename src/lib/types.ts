@@ -1,6 +1,5 @@
 export type Place = "nature" | "city";
 export type Setting = "indoor" | "outdoor";
-export type Distance = "near" | "far";
 export type Cost = "free" | "moderate" | "expensive";
 export type Budget = "free" | "moderate" | "any";
 /** Furthest an activity may be from the starting point, in kilometres. */
@@ -17,7 +16,6 @@ export interface Activity {
   coffee: boolean;
   /** Mostly under a roof, so it works on a rainy day. */
   indoor: boolean;
-  distance: Distance;
   cost: Cost;
   minAge: number;
   durationHours: number;
@@ -38,7 +36,6 @@ export interface Preferences {
   place: Choice<Place>;
   coffee: Choice<"yes" | "no">;
   setting: Choice<Setting>;
-  distance: Choice<Distance>;
   budget: Budget;
   /** Only applied once a starting point is set. */
   radius: Choice<Radius>;

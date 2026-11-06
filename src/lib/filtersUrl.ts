@@ -4,7 +4,6 @@ export const noFilters: Preferences = {
   place: "any",
   coffee: "any",
   setting: "any",
-  distance: "any",
   budget: "any",
   radius: "any",
 };
@@ -15,7 +14,6 @@ const params = {
   place: { name: "mjesto", values: { nature: "priroda", city: "grad" } },
   coffee: { name: "kafa", values: { yes: "da", no: "ne" } },
   setting: { name: "prostor", values: { indoor: "unutra", outdoor: "vani" } },
-  distance: { name: "daljina", values: { near: "blizu", far: "daleko" } },
   budget: { name: "budzet", values: { free: "dzabe", moderate: "umjereno" } },
   radius: { name: "km", values: { "30": "30", "60": "60", "120": "120" } },
 } as const;

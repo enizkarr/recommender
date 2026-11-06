@@ -21,7 +21,6 @@ export function recommend(activities: Activity[], prefs: Preferences, kmTo?: (a:
         (prefs.place === "any" || a.place === prefs.place) &&
         (prefs.coffee === "any" || a.coffee === (prefs.coffee === "yes")) &&
         (prefs.setting === "any" || a.indoor === (prefs.setting === "indoor")) &&
-        (prefs.distance === "any" || a.distance === prefs.distance) &&
         allowedCosts[prefs.budget].includes(a.cost) &&
         withinLimit(a),
     )

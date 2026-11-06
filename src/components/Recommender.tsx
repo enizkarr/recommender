@@ -42,7 +42,6 @@ function filterCount(prefs: Preferences, hasStart: boolean): number {
   return [
     prefs.place !== "any",
     prefs.setting !== "any",
-    prefs.distance !== "any",
     prefs.budget !== "any",
     prefs.coffee !== "any",
     // The kilometre limit does nothing without a starting point, so it is not counted then.

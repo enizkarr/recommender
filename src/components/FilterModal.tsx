@@ -65,11 +65,6 @@ function optionsFor(t: Dict) {
       { value: "indoor", label: t.indoor },
       { value: "outdoor", label: t.outdoor },
     ] satisfies Option<Preferences["setting"]>[],
-    distance: [
-      { value: "any", label: t.filters.any },
-      { value: "near", label: t.filters.near },
-      { value: "far", label: t.filters.far },
-    ] satisfies Option<Preferences["distance"]>[],
     radius: [
       { value: "any", label: t.filters.any },
       { value: "30", label: t.filters.upToKm("30") },
@@ -228,13 +223,6 @@ export default function FilterModal({ initial, countFor, onApply, onClose, start
             options={options.setting}
             value={draft.setting}
             onChange={(setting) => setDraft({ ...draft, setting })}
-          />
-          <Segmented
-            legend={t.filters.distance}
-            name="distance"
-            options={options.distance}
-            value={draft.distance}
-            onChange={(distance) => setDraft({ ...draft, distance })}
           />
           {startName ? (
             <Segmented
