@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, Geist, Geist_Mono, Great_Vibes } from "next/font/google";
+import { DM_Serif_Display, Geist, Great_Vibes } from "next/font/google";
 import { notFound } from "next/navigation";
 import LangProvider from "@/i18n/LangProvider";
 import { creditsPath, dictionaries, isLang, LANGS } from "@/i18n/dictionaries";
@@ -7,11 +7,6 @@ import "../globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin", "latin-ext"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
   subsets: ["latin", "latin-ext"],
 });
 
@@ -44,7 +39,7 @@ export default async function RootLayout({ children, params }: LayoutProps<"/[la
   return (
     <html
       lang={lang}
-      className={`${geistSans.variable} ${geistMono.variable} ${greatVibes.variable} ${dmSerif.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${greatVibes.variable} ${dmSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <LangProvider lang={lang}>{children}</LangProvider>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import DirectionsLink from "@/components/DirectionsLink";
+import DirectionsLink, { NavIcon } from "@/components/DirectionsLink";
 import FavouriteButton from "@/components/FavouriteButton";
 import MapTeaser from "@/components/MapTeaser";
 import Photo from "@/components/Photo";
@@ -136,9 +136,7 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
             label={t.directionsLabel(a.title)}
             className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-surface transition hover:opacity-90"
           >
-            <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden>
-              <path d="M3 11 21 3l-8 18-2-8z" />
-            </svg>
+            <NavIcon />
             {t.directions}
           </DirectionsLink>
           <FavouriteButton id={a.id} title={a.title} label className={pill} />

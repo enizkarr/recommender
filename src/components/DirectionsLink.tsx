@@ -9,6 +9,15 @@ const warningOff = storedValue("family-time:route-warning-off");
 const warningTurnedOff = () => warningOff.get() === "1";
 const turnWarningOff = () => warningOff.set("1");
 
+/** Navigation arrow, as used by map apps for "directions". */
+export function NavIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden>
+      <path d="M3 11 21 3l-8 18-2-8z" />
+    </svg>
+  );
+}
+
 /** Reminder that the suggested route is only a guide, shown before Google Maps opens. */
 function RouteWarning({ href, onClose }: { href: string; onClose: () => void }) {
   const t = useT();

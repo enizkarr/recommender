@@ -2,11 +2,10 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import ActivityPopups, { ActivityLink } from "@/components/ActivityPopups";
-import LanguageSwitch from "@/components/LanguageSwitch";
+import PageShell, { PageHeader } from "@/components/PageShell";
 import Photo from "@/components/Photo";
-import Rail from "@/components/Rail";
 import { activitiesIn } from "@/i18n/activities";
-import { dictionaries, isLang, topPath, type Dict, type Lang } from "@/i18n/dictionaries";
+import { dictionaries, langOf, topPath, type Dict, type Lang } from "@/i18n/dictionaries";
 import { activityFromQuery } from "@/lib/filtersUrl";
 import { averageRating, MIN_REVIEWS_FOR_RANK, rankActivities, type RankedActivity, type RatingTotal } from "@/lib/ranking";
 import { ratingTotals } from "@/lib/reviews";
@@ -16,7 +15,7 @@ const PODIUM_SIZE = MEDALS.length;
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/top">): Promise<Metadata> {
   const { lang } = await params;
-  const t = dictionaries[isLang(lang) ? lang : "bs"];
+  const t = dictionaries[langOf(lang)];
   return { title: `${t.top.title} – Family Time`, description: t.top.intro };
 }
 
@@ -129,26 +128,14 @@ async function RankingList({ lang, searchParams }: { lang: Lang; searchParams: P
 }
 
 export default async function TopDestinations({ params, searchParams }: PageProps<"/[lang]/top">) {
-  const { lang: requested } = await params;
-  const lang = isLang(requested) ? requested : "bs";
+  const lang = langOf((await params).lang);
   const t = dictionaries[lang];
   return (
-    <div id="top" className="mx-auto grid w-full max-w-[1240px] grid-cols-1 gap-6 px-4 py-6 lg:grid-cols-[92px_minmax(0,1fr)] lg:gap-7">
-      <Rail lang={lang} active="top" />
-      <main className="min-w-0 space-y-6">
-        <header className="flex flex-wrap items-center justify-between gap-6">
-          <div className="min-w-0 flex-[1_1_320px]">
-            <h1 className="font-serif text-[clamp(32px,4vw,46px)] leading-tight">{t.top.title}</h1>
-            <p className="mt-1.5 text-[17px] text-muted">
-              {t.top.intro} {t.top.rule(MIN_REVIEWS_FOR_RANK)}
-            </p>
-          </div>
-          <LanguageSwitch paths={topPath} />
-        </header>
-        <Suspense fallback={<p className="rounded-[30px] bg-surface p-8 text-center text-muted shadow-card">{t.top.loading}</p>}>
-          <RankingList lang={lang} searchParams={searchParams} />
-        </Suspense>
-      </main>
-    </div>
+    <PageShell lang={lang} active="top" className="space-y-6">
+      <PageHeader title={t.top.title} intro={`${t.top.intro} ${t.top.rule(MIN_REVIEWS_FOR_RANK)}`} paths={topPath} />
+      <Suspense fallback={<p className="rounded-[30px] bg-surface p-8 text-center text-muted shadow-card">{t.top.loading}</p>}>
+        <RankingList lang={lang} searchParams={searchParams} />
+      </Suspense>
+    </PageShell>
   );
 }

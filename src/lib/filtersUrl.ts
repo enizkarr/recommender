@@ -22,7 +22,7 @@ type Key = keyof typeof params;
 const keys = Object.keys(params) as Key[];
 
 /** Query string for the given filters, without the leading "?"; empty when no filter is set. */
-export function prefsToQuery(prefs: Preferences): string {
+function prefsToQuery(prefs: Preferences): string {
   const query = new URLSearchParams();
   for (const key of keys) {
     const values: Record<string, string> = params[key].values;

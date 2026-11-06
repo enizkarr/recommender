@@ -31,7 +31,7 @@ export interface Ranking {
 }
 
 /** What decides the order; visitors see the real average instead. */
-export function rankingScore({ sum, count }: RatingTotal): number {
+function rankingScore({ sum, count }: RatingTotal): number {
   return (STARTING_RATING * STARTING_REVIEWS + sum) / (STARTING_REVIEWS + count);
 }
 

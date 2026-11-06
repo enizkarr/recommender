@@ -5,7 +5,7 @@ import { useApprovedReviews } from "@/lib/publicReviews";
 import type { RatingSummary } from "@/lib/reviewLimits";
 
 /** "★★★★☆" with the empty stars dimmed; the number is given to screen readers separately. */
-export function Stars({ rating, className = "" }: { rating: number; className?: string }) {
+function Stars({ rating, className = "" }: { rating: number; className?: string }) {
   const full = Math.round(rating);
   return (
     <span aria-hidden className={`tracking-wide text-sun ${className}`}>

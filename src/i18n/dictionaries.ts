@@ -6,6 +6,9 @@ export type Lang = (typeof LANGS)[number];
 
 export const isLang = (value: string): value is Lang => (LANGS as readonly string[]).includes(value);
 
+/** The page language from the URL. The layout already turns any other value into a 404, so this only narrows the type. */
+export const langOf = (value: string): Lang => (isLang(value) ? value : "bs");
+
 /** Each language by its own name, for the language switch. */
 export const langNames: Record<Lang, string> = { bs: "Bosanski", en: "English" };
 

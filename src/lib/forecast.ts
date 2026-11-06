@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { describe, WEATHER_CITIES } from "@/components/WeatherWidget";
+import { mostCommon, WEATHER_CITIES } from "@/components/WeatherWidget";
 import { cities } from "@/data/cities";
 import type { Dict } from "@/i18n/dictionaries";
 
@@ -61,13 +61,6 @@ async function fetchDaily(points: [number, number][]): Promise<DailyResponse[]> 
   return Array.isArray(data) ? data : [data];
 }
 
-/** The condition shared by the most places; ties go to the first place in the list. */
-function mostCommonCode(codes: number[]): number {
-  const counts = new Map<string, number>();
-  for (const c of codes) counts.set(describe(c).kind, (counts.get(describe(c).kind) ?? 0) + 1);
-  return codes.reduce((best, c) => (counts.get(describe(c).kind)! > counts.get(describe(best).kind)! ? c : best));
-}
-
 const average = (values: number[]) => values.reduce((sum, v) => sum + v, 0) / values.length;
 
 async function fetchWeekend(start: { name: string; coordinates: [number, number] } | null): Promise<WeekendForecast> {
@@ -77,9 +70,10 @@ async function fetchWeekend(start: { name: string; coordinates: [number, number]
   const dates = places[0].daily.time;
   const days = weekendIndexes(dates).map((i) => {
     const at = (key: "temperature_2m_max" | "temperature_2m_min") => Math.round(average(places.map((p) => p.daily[key][i])));
+    const codes = places.map((p) => p.daily.weather_code[i]);
     return {
       date: dates[i],
-      code: mostCommonCode(places.map((p) => p.daily.weather_code[i])),
+      code: codes[mostCommon(codes)],
       max: at("temperature_2m_max"),
       min: at("temperature_2m_min"),
       rainChance: Math.round(average(places.map((p) => p.daily.precipitation_probability_max[i] ?? 0))),

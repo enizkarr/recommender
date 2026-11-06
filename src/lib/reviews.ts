@@ -1,12 +1,12 @@
 import "server-only";
 import { getDb } from "@/lib/db";
-import type { RatingTotal } from "@/lib/ranking";
+import { averageRating, type RatingTotal } from "@/lib/ranking";
 import type { PublicReview, RatingSummary } from "@/lib/reviewLimits";
 
 // Reading and changing stored reviews. Only server code imports this; the admin page uses it
 // through its actions, which check the login first.
 
-export const REVIEW_STATUSES = ["pending", "approved", "rejected"] as const;
+const REVIEW_STATUSES = ["pending", "approved", "rejected"] as const;
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number];
 
 export const isReviewStatus = (value: unknown): value is ReviewStatus =>
@@ -62,20 +62,17 @@ export function deleteRejectedReview(id: number) {
   getDb().prepare("DELETE FROM reviews WHERE id = ? AND status = 'rejected'").run(id);
 }
 
-/** Average rating and number of approved reviews, for every activity that has any. */
-export function ratingSummaries(): Record<string, RatingSummary> {
-  const rows = getDb()
-    .prepare("SELECT activity_id AS activityId, avg(rating) AS average, count(*) AS count FROM reviews WHERE status = 'approved' GROUP BY activity_id")
-    .all() as { activityId: string; average: number; count: number }[];
-  return Object.fromEntries(rows.map((r) => [r.activityId, { average: Math.round(r.average * 10) / 10, count: r.count }]));
-}
-
 /** Sum of the ratings and number of approved reviews, unrounded, for ranking every activity that has any. */
 export function ratingTotals(): Record<string, RatingTotal> {
   const rows = getDb()
     .prepare("SELECT activity_id AS activityId, sum(rating) AS sum, count(*) AS count FROM reviews WHERE status = 'approved' GROUP BY activity_id")
     .all() as { activityId: string; sum: number; count: number }[];
   return Object.fromEntries(rows.map((r) => [r.activityId, { sum: r.sum, count: r.count }]));
+}
+
+/** Average rating (rounded to one decimal) and number of approved reviews, for every activity that has any. */
+export function ratingSummaries(): Record<string, RatingSummary> {
+  return Object.fromEntries(Object.entries(ratingTotals()).map(([id, total]) => [id, { average: averageRating(total), count: total.count }]));
 }
 
 /** The latest approved reviews of one activity, with only the fields the public may see. */

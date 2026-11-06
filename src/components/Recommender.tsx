@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import ActivityDetail from "@/components/ActivityDetail";
 import BosniaMap from "@/components/BosniaMap";
-import DirectionsLink from "@/components/DirectionsLink";
+import DirectionsLink, { NavIcon } from "@/components/DirectionsLink";
 import FavouriteButton from "@/components/FavouriteButton";
 import FilterModal, { SlidersIcon } from "@/components/FilterModal";
 import LanguageSwitch from "@/components/LanguageSwitch";
@@ -82,17 +82,10 @@ function LongArrow() {
   );
 }
 
-/** Navigation arrow, as used by map apps for "directions". */
-function NavIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" aria-hidden>
-      <path d="M3 11 21 3l-8 18-2-8z" />
-    </svg>
-  );
-}
-
 const roundButton = "grid size-[38px] shrink-0 place-items-center rounded-full bg-page text-ink shadow-soft transition hover:-translate-y-0.5";
 const card = "rounded-[30px] bg-surface shadow-card";
+/** The small square tiles under the list: top destinations, coming features and favourites. */
+const tile = "grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card";
 
 function Tag({ children, tone = "plain" }: { children: ReactNode; tone?: "plain" | "free" | "km" }) {
   const tones = {
@@ -192,7 +185,7 @@ function Chip({ pressed, onClick, children }: { pressed: boolean; onClick: () =>
 function ComingSoonTile({ label, children }: { label: string; children: ReactNode }) {
   const t = useT();
   return (
-    <li className="relative grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card">
+    <li className={`relative ${tile}`}>
       <span className="absolute top-2 right-2 rounded-full bg-sun/90 px-2 py-0.5 text-[10px] font-semibold text-[#14305a]">{t.soon}</span>
       <svg viewBox="0 0 40 40" className="size-9" aria-hidden>
         {children}
@@ -740,7 +733,7 @@ export default function Recommender({
             <li className="grid">
               <a
                 href={topPath[lang]}
-                className="grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card transition hover:-translate-y-0.5"
+                className={`${tile} transition hover:-translate-y-0.5`}
               >
                 {/* A star above a winners' podium */}
                 <svg viewBox="0 0 40 40" className="size-9" aria-hidden>
@@ -769,7 +762,7 @@ export default function Recommender({
                 type="button"
                 aria-pressed={listView === "favourites"}
                 onClick={toggleFavouritesView}
-                className={`relative grid content-start justify-items-center gap-2 rounded-[26px] bg-surface px-1.5 pt-[22px] pb-3.5 text-center text-[13px] leading-tight shadow-card transition hover:-translate-y-0.5 ${listView === "favourites" ? "ring-2 ring-accent" : ""}`}
+                className={`relative ${tile} transition hover:-translate-y-0.5 ${listView === "favourites" ? "ring-2 ring-accent" : ""}`}
               >
                 {saved.length > 0 && (
                   <span className="absolute top-2 right-2 grid min-w-5 place-items-center rounded-full bg-[#e25b5b] px-1.5 py-0.5 text-[11px] font-semibold text-white">{saved.length}</span>

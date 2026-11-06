@@ -2,7 +2,7 @@ import type { Dict } from "@/i18n/dictionaries";
 import type { Activity } from "@/lib/types";
 
 /** The licence's own page, e.g. "CC BY-SA 4.0" or "CC BY 3.0 rs"; undefined for one it cannot read. */
-export function licenseUrl(license: string): string | undefined {
+function licenseUrl(license: string): string | undefined {
   if (license === "CC0") return "https://creativecommons.org/publicdomain/zero/1.0/";
   const match = /^CC (BY(?:-SA)?) (\d\.\d)(?: (\w+))?$/.exec(license);
   if (!match) return undefined;

@@ -140,7 +140,7 @@ async function fetchCountry(): Promise<Weather> {
     code: d.current.weather_code,
     isDay: d.current.is_day === 1,
   }));
-  const overall = mostCommon(list);
+  const overall = list[mostCommon(list.map((c) => c.code))];
   const temps = list.map((c) => c.temperature);
   return {
     place: null,
@@ -180,11 +180,12 @@ async function fetchPlace(place: string, [latitude, longitude]: [number, number]
   };
 }
 
-/** The condition shared by the most cities; ties go to the first city in the list. */
-function mostCommon(list: CityWeather[]): CityWeather {
-  const counts = new Map<string, number>();
-  for (const c of list) counts.set(describe(c.code).kind, (counts.get(describe(c.code).kind) ?? 0) + 1);
-  return list.reduce((best, c) => (counts.get(describe(c.code).kind)! > counts.get(describe(best.code).kind)! ? c : best));
+/** Position of the weather shared by the most places; ties go to the first place in the list. */
+export function mostCommon(codes: number[]): number {
+  const counts = new Map<WeatherKind, number>();
+  for (const code of codes) counts.set(describe(code).kind, (counts.get(describe(code).kind) ?? 0) + 1);
+  const count = (code: number) => counts.get(describe(code).kind)!;
+  return codes.reduce((best, code, i) => (count(code) > count(codes[best]) ? i : best), 0);
 }
 
 // Painted sky behind the numbers: one gradient per sky type, and a night-time one.

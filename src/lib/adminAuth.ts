@@ -56,6 +56,8 @@ function recentFailures(sender: string): number[] {
 export const loginBlocked = (sender: string) => recentFailures(sender).length >= MAX_FAILURES;
 
 export function recordFailedLogin(sender: string) {
+  // Forget senders whose failures have all expired, so the list cannot keep growing.
+  for (const other of failures.keys()) recentFailures(other);
   failures.set(sender, [...recentFailures(sender), Date.now()]);
 }
 

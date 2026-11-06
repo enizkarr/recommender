@@ -7,7 +7,7 @@ export const HERO_SIZE = 3;
 const sarajevoDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Sarajevo", year: "numeric", month: "2-digit", day: "2-digit" });
 
 /** The ISO week of a moment, counted in Sarajevo time, e.g. "2026-W44". */
-export function weekKey(date: Date): string {
+function weekKey(date: Date): string {
   const [y, m, d] = sarajevoDay.format(date).split("-").map(Number);
   // ISO weeks start on Monday, and week 1 is the one holding the year's first Thursday.
   const day = new Date(Date.UTC(y, m - 1, d));
