@@ -71,6 +71,8 @@ const bs = {
   coffee: "Kafa",
   indoor: "Unutra",
   outdoor: "Vani",
+  /** Where an activity happens, on its card and in its details. */
+  setting: { indoor: "Unutra", outdoor: "Vani", both: "Unutra i vani" },
   place: { nature: "Priroda", city: "Grad" },
   cost: { free: "Besplatno", moderate: "Umjereno", expensive: "Skuplje" },
 
@@ -379,6 +381,7 @@ const en: Dict = {
   coffee: "Coffee",
   indoor: "Indoors",
   outdoor: "Outdoors",
+  setting: { indoor: "Indoors", outdoor: "Outdoors", both: "Indoors and outdoors" },
   place: { nature: "Nature", city: "Town" },
   cost: { free: "Free", moderate: "Moderate", expensive: "Pricier" },
 

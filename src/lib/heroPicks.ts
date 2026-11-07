@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { worksIndoors } from "./recommend";
 import type { Activity } from "./types";
 
 /** How many activities the hero offers as thumbnails. */
@@ -36,10 +37,10 @@ function hash(text: string): number {
 
 /**
  * The week's featured activities: the same for everyone during a week, a new set the next week.
- * On a rainy day they come only from activities that are mostly under a roof.
+ * On a rainy day they come only from activities that can be enjoyed under a roof.
  */
 export function heroPicks(activities: Activity[], week: string, rainy: boolean): string[] {
-  const pool = activities.filter((a) => a.image && (!rainy || a.indoor));
+  const pool = activities.filter((a) => a.image && (!rainy || worksIndoors(a)));
   const random = seededRandom(hash(rainy ? `${week}-kisa` : week));
   const shuffled = [...pool];
   for (let i = shuffled.length - 1; i > 0; i--) {

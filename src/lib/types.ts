@@ -1,5 +1,7 @@
 export type Place = "nature" | "city";
 export type Setting = "indoor" | "outdoor";
+/** Where an activity happens; "both" has indoor and outdoor parts, so it suits rainy and sunny days alike. */
+export type ActivitySetting = Setting | "both";
 export type Cost = "free" | "moderate" | "expensive";
 export type Budget = "free" | "moderate" | "any";
 /** Furthest an activity may be from the starting point, in kilometres. */
@@ -14,8 +16,8 @@ export interface Activity {
   description: string;
   place: Place;
   coffee: boolean;
-  /** Mostly under a roof, so it works on a rainy day. */
-  indoor: boolean;
+  /** Under a roof (works on a rainy day), outside, or both. */
+  setting: ActivitySetting;
   cost: Cost;
   minAge: number;
   durationHours: number;

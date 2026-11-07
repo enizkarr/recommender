@@ -567,7 +567,7 @@ export default function Recommender({
                     <p className="mt-3 text-sm opacity-90">
                       {featuredTrip && `${t.fromYou(tripKm(featuredTrip, t))} · `}
                       {featuredTrip?.minutes !== undefined && `🚗 ${formatDrive(featuredTrip.minutes, t)} · `}
-                      {featured.indoor ? t.indoor : t.outdoor} · {t.cost[featured.cost]}
+                      {t.setting[featured.setting]} · {t.cost[featured.cost]}
                       {featured.coffee && ` · ☕ ${t.coffee}`}
                     </p>
                     <div className="mt-6 flex flex-wrap items-center gap-3">

@@ -1,5 +1,10 @@
 import type { Activity, Budget, Cost, Preferences } from "./types";
 
+/** Can be enjoyed under a roof, e.g. on a rainy day: indoor activities and those with indoor and outdoor parts. */
+export const worksIndoors = (a: Activity) => a.setting !== "outdoor";
+/** Can be enjoyed outside: outdoor activities and those with indoor and outdoor parts. */
+export const worksOutdoors = (a: Activity) => a.setting !== "indoor";
+
 const allowedCosts: Record<Budget, Cost[]> = {
   free: ["free"],
   moderate: ["free", "moderate"],
@@ -20,7 +25,7 @@ export function recommend(activities: Activity[], prefs: Preferences, kmTo?: (a:
       (a) =>
         (prefs.place === "any" || a.place === prefs.place) &&
         (prefs.coffee === "any" || a.coffee === (prefs.coffee === "yes")) &&
-        (prefs.setting === "any" || a.indoor === (prefs.setting === "indoor")) &&
+        (prefs.setting === "any" || (prefs.setting === "indoor" ? worksIndoors(a) : worksOutdoors(a))) &&
         allowedCosts[prefs.budget].includes(a.cost) &&
         withinLimit(a),
     )

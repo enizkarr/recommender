@@ -5,6 +5,7 @@ import { describe, SkyIcon } from "@/components/WeatherWidget";
 import { formatDrive, tripKm, type Trip } from "@/lib/driving";
 import { useT } from "@/i18n/LangProvider";
 import { dayLabel, useWeekendForecast, type DayForecast } from "@/lib/forecast";
+import { worksIndoors, worksOutdoors } from "@/lib/recommend";
 import type { StartLocation } from "@/lib/startLocation";
 import type { Activity } from "@/lib/types";
 
@@ -37,9 +38,9 @@ function score(day: DayForecast): number {
 
 /** Activities that suit the day: outdoor ones, indoor ones on a rainy day, snow ones (then indoor) on a snowy day. */
 function suits(a: Activity, verdict: Verdict): boolean {
-  if (verdict === "indoor") return a.indoor;
+  if (verdict === "indoor") return worksIndoors(a);
   if (verdict === "snow") return a.tags.includes("snow");
-  return !a.indoor;
+  return worksOutdoors(a);
 }
 
 interface DayPlan {
@@ -62,7 +63,7 @@ function planWeekend(days: DayForecast[], results: Activity[]): DayPlan[] {
     let suggestions = pick((a) => suits(a, verdict)).slice(0, SUGGESTIONS_PER_DAY);
     // Few snow activities: fill up with indoor ones.
     if (verdict === "snow" && suggestions.length < SUGGESTIONS_PER_DAY) {
-      suggestions = [...suggestions, ...pick((a) => a.indoor && !suggestions.includes(a))].slice(0, SUGGESTIONS_PER_DAY);
+      suggestions = [...suggestions, ...pick((a) => worksIndoors(a) && !suggestions.includes(a))].slice(0, SUGGESTIONS_PER_DAY);
     }
     suggestions.forEach((a) => used.add(a.id));
     // The better of two days, and only when it is a day for going out at all.

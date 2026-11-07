@@ -16,6 +16,8 @@ import { shareLink } from "@/lib/share";
 import type { StartLocation } from "@/lib/startLocation";
 import type { Activity } from "@/lib/types";
 
+const settingIcon: Record<Activity["setting"], string> = { indoor: "🏠", outdoor: "🌤️", both: "🏠🌤️" };
+
 function Fact({ icon, label, value }: { icon: string; label: string; value: string }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl bg-page px-3.5 py-3">
@@ -173,7 +175,7 @@ export default function ActivityDetail({ activity: a, trip, start, nearby, onSel
           <Fact icon="👶" label={t.detail.age} value={a.minAge === 0 ? t.detail.allAges : t.detail.fromAge(a.minAge)} />
           <Fact icon="⏱️" label={t.detail.duration} value={t.detail.hours(a.durationHours)} />
           <Fact icon="💰" label={t.detail.price} value={t.cost[a.cost]} />
-          <Fact icon={a.indoor ? "🏠" : "🌤️"} label={t.detail.where} value={a.indoor ? t.indoor : t.outdoor} />
+          <Fact icon={settingIcon[a.setting]} label={t.detail.where} value={t.setting[a.setting]} />
           <Fact icon={a.place === "nature" ? "🌲" : "🏛️"} label={t.detail.surroundings} value={t.place[a.place]} />
           {a.coffee && <Fact icon="☕" label={t.detail.forParents} value={t.detail.hasCoffee} />}
         </div>
