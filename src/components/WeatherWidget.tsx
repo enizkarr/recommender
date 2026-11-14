@@ -201,9 +201,11 @@ const skies: Record<Sky, string> = {
 const nightSky = "linear-gradient(170deg, #0a1730, #183058 60%, #2c4a7a)";
 // The sun from the design, drawn in the top-right corner on clear days.
 const sun = "radial-gradient(circle at 76% 26%, #ffe9a3 0 9%, #f7c948 10% 15%, rgba(247,201,72,.35) 16% 24%, transparent 25%)";
-// Two soft clouds along the bottom edge.
-const clouds =
-  "radial-gradient(ellipse 34% 16% at 82% 80%, rgba(255,255,255,.85) 60%, transparent 62%), radial-gradient(ellipse 26% 14% at 16% 88%, rgba(255,255,255,.8) 60%, transparent 62%)";
+// Two soft clouds along the bottom edge; `right` and `left` are how solid each one is (0–1).
+const cloudsAt = (right: number, left: number) =>
+  `radial-gradient(ellipse 34% 16% at 82% 80%, rgba(255,255,255,${right}) 60%, transparent 62%), radial-gradient(ellipse 26% 14% at 16% 88%, rgba(255,255,255,${left}) 60%, transparent 62%)`;
+const clouds = cloudsAt(0.85, 0.8);
+const nightClouds = cloudsAt(0.185, 0.18);
 
 /** Whether a weather code means a day for staying under a roof (rain, showers or a storm). */
 export function isRainy(code: number): boolean {
@@ -269,7 +271,7 @@ export default function WeatherWidget({
   const background = !weather
     ? skies.overcast
     : !weather.isDay
-      ? `${clouds.replaceAll(".8", ".18")}, ${nightSky}`
+      ? `${nightClouds}, ${nightSky}`
       : summary!.sky === "clear"
         ? `${sun}, ${clouds}, ${skies.clear}`
         : `${clouds}, ${skies[summary!.sky]}`;

@@ -31,7 +31,9 @@ import { useOpenActivity } from "@/lib/useOpenActivity";
 import type { Activity, Preferences } from "@/lib/types";
 
 /** How long the hero waits for the weather before picking as on a dry day. */
-const WEATHER_WAIT_MS = 2500;
+const WEATHER_WAIT_MS = 1500;
+/** Photo beside "Predloži" until a suggestion has been made. */
+const SUGGEST_PHOTO_ID = "stari-most";
 /** Cards shown before "Prikaži sve" (show all). */
 const FIRST_CARDS = 8;
 const SHUFFLE_MS = 900;
@@ -631,7 +633,8 @@ export default function Recommender({
               </g>
             </svg>
           </p>
-          <WeatherWidget onWeather={(code) => setRainy(code !== null && isRainy(code))} />
+          {/* Only the first answer counts: one that comes after the wait, or a later refresh, does not swap the picks. */}
+          <WeatherWidget onWeather={(code) => setRainy((r) => r ?? (code !== null && isRainy(code)))} />
           <div ref={startCard} className={`${card} p-5`}>
             <h3 className="mb-3.5 font-serif text-[21px]">{t.start.title}</h3>
             <StartLocationPicker location={start} />
@@ -703,7 +706,7 @@ export default function Recommender({
           </figure>
           <div className={`${card} flex flex-wrap items-center gap-4 px-4 py-3.5 sm:flex-nowrap`}>
             <div className="relative h-16 w-[76px] shrink-0 overflow-hidden rounded-2xl">
-              <Photo a={(suggested && featured) || activities.find((a) => a.id === "stari-most")!} sizes="76px" />
+              <Photo a={(suggested && featured) || (activities.find((a) => a.id === SUGGEST_PHOTO_ID) ?? activities[0])} sizes="76px" />
             </div>
             <p className="min-w-0 flex-1">
               <strong className="block font-medium">{t.suggest.title}</strong>

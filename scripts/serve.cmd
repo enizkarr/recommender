@@ -46,7 +46,10 @@ echo.
 echo [5/5] Starting the site at http://localhost:%PORT%
 echo       Keep this window open. Close it, or press Ctrl+C, to stop the site.
 echo.
-call npx next start -p %PORT%
+rem Behind Cloudflare Tunnel the site must only answer on this PC, or a visitor's address could be forged (see src\lib\sender.ts).
+set HOST_ARG=
+if exist .env.local findstr /b /c:"BEHIND_CLOUDFLARE=1" .env.local >nul 2>&1 && set HOST_ARG=-H 127.0.0.1
+call npx next start -p %PORT% %HOST_ARG%
 goto :eof
 
 :failed

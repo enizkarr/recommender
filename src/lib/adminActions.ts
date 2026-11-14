@@ -14,7 +14,9 @@ import {
   SESSION_MAX_AGE,
 } from "@/lib/adminAuth";
 import { deleteRejectedReview, isReviewStatus, setReviewStatus } from "@/lib/reviews";
-import { senderHash } from "@/lib/sender";
+import { senderHash, sendersShared } from "@/lib/sender";
+
+const FAILED_LOGIN_DELAY_MS = 1000;
 
 // Like every server function, these can be called by anyone who sends the right request, so each
 // one checks the login itself instead of trusting that only the admin page shows its buttons.
@@ -24,10 +26,16 @@ export type LoginState = { error: "wrong" | "blocked" | "notConfigured" | null }
 export async function login(_previous: LoginState, form: FormData): Promise<LoginState> {
   if (!adminConfigured()) return { error: "notConfigured" };
   const sender = await senderHash();
-  if (loginBlocked(sender)) return { error: "blocked" };
+  if (!sendersShared && loginBlocked(sender)) return { error: "blocked" };
 
   const input = form.get("password");
   if (typeof input !== "string" || !passwordMatches(input)) {
+    if (sendersShared) {
+      // Visitors cannot be told apart, so a lockout would let anyone keep the owner out.
+      // A pause after each wrong password slows guessing down instead.
+      await new Promise((resolve) => setTimeout(resolve, FAILED_LOGIN_DELAY_MS));
+      return { error: "wrong" };
+    }
     recordFailedLogin(sender);
     return { error: loginBlocked(sender) ? "blocked" : "wrong" };
   }

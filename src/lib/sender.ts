@@ -15,6 +15,12 @@ const secret = process.env.REVIEWS_SECRET ?? randomBytes(32).toString("hex");
 const behindCloudflare = process.env.BEHIND_CLOUDFLARE === "1";
 
 /**
+ * True when visitors cannot be told apart (no Cloudflare in front). Limits that would then punish
+ * everyone for one visitor's actions (one review per place a day, the login lockout) are not used.
+ */
+export const sendersShared = !behindCloudflare;
+
+/**
  * A one-way fingerprint of the visitor's connection, used for spam and login limits.
  * The IP address itself is never stored. Without Cloudflare in front, every visitor counts as the
  * same sender, so the limits apply to the site as a whole.

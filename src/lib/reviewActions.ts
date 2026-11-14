@@ -2,7 +2,7 @@
 
 import { activities } from "@/data/activities";
 import { getDb } from "@/lib/db";
-import { senderHash } from "@/lib/sender";
+import { senderHash, sendersShared } from "@/lib/sender";
 import {
   REVIEW_KIDS_MAX,
   REVIEW_MONTHS_BACK,
@@ -37,7 +37,8 @@ function visitMonth(value: string): string | null | false {
   const months = Number(match[1]) * 12 + Number(match[2]) - 1;
   const now = new Date();
   const thisMonth = now.getFullYear() * 12 + now.getMonth();
-  return Number(match[2]) >= 1 && months <= thisMonth && months >= thisMonth - REVIEW_MONTHS_BACK ? value : false;
+  const month = Number(match[2]);
+  return month >= 1 && month <= 12 && months <= thisMonth && months >= thisMonth - REVIEW_MONTHS_BACK ? value : false;
 }
 
 export async function submitReview(_previous: ReviewFormState, form: FormData): Promise<ReviewFormState> {
@@ -78,7 +79,9 @@ export async function submitReview(_previous: ReviewFormState, form: FormData): 
          WHERE sender_hash = ? AND created_at >= strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 day')`,
       )
       .get(activityId, sender) as { lastHour: number; sameActivity: number };
-    if (recent.sameActivity > 0) return { status: "error", errors: ["duplicate"] };
+    // When every visitor counts as the same sender, another family's review would look like a
+    // repeat, so only the hourly limit applies (to the site as a whole).
+    if (!sendersShared && recent.sameActivity > 0) return { status: "error", errors: ["duplicate"] };
     if (recent.lastHour >= MAX_PER_HOUR) return { status: "error", errors: ["tooMany"] };
 
     db.prepare(
